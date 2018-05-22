@@ -316,11 +316,19 @@ break;
                 MessageBox.Show("Nothing found", "no results!");
             }
     listBox1.Items.Clear();
-        foreach (var audio in AudioList)
-        {
-            string data = audio.Artist + " - " + audio.Title;
+            for (int i = AudioList.Count -1; i >= 0; i--)
+            {
+                if (AudioList[i].Url == string.Empty)
+                {
+                    AudioList.RemoveAt(i);
+                }
+            }
+
+            for (int i = 0; i < AudioList.Count; i++)
+            {
+                string data = AudioList[i].Artist + " - " + AudioList[i].Title;
             data = data.TrimStart();
-            int seconds = audio.Duration;
+            int seconds = AudioList[i].Duration;
             var timespan = TimeSpan.FromSeconds(seconds);
             listBox1.Items.Add(data + " " + timespan.ToString(@"mm\:ss"));
            //listBox1.Items.Add(new ListBoxItem("name", "value"));
