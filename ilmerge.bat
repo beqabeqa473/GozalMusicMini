@@ -1,0 +1,1 @@
+"C:\Program Files (x86)\Microsoft\ILMerge\ILMerge.exe" /out:bin\GozalMusicMini.exe bin\release\GozalMusicMini.exe bin\release\NAudio.dll bin\release\Newtonsoft.Json.dll /targetplatform:v4
