@@ -1,3 +1,4 @@
-# VKmusic
-A program for listening music from VK.
-Program uses VK API.
+# GozalMusicMini
+Application to listen music on social network VK.com.
+
+Currently it can search songs and play them, show popular content.
