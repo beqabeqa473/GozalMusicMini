@@ -1,26 +1,33 @@
-﻿using NAudio.Wave;
+﻿using GozalMusicMini.Properties;
+using NAudio.Wave;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Data;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
 using System.Web;
 using System.Windows.Forms;
 
 namespace GozalMusicMini
 {
     public partial class MainForm : Form
-	{
-private AudioFileReader audioFileReader= null;
-private DirectSoundOut waveOut = null;
+    {
+        private AudioFileReader audioFileReader = null;
+        private DirectSoundOut waveOut = null;
         private Guid PlaybackDeviceID;
         private System.Timers.Timer switchTimer;
 
         private string accessToken;
+        private int userID;
+        private int count = 200;
+        private string userAgent;
+
         public List<Audio> AudioList;
 
         public class Audio
@@ -36,20 +43,28 @@ private DirectSoundOut waveOut = null;
         }
 
         public MainForm()
-		{
-			InitializeComponent();
+        {
+            InitializeComponent();
             InitialiseDeviceCombo();
+            userAgent = "KateMobileAndroid/48.2 lite-433 (Android 8.1.0; SDK 27; arm64-v8a; Google Pixel 2 XL; en)";
         }
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            accessToken = "08ee901ce94ce05d8e5b79caff11022076956217af9ed6e4636b8dd9f57a98ef02161429cf8bcde0f03c1";
-            switchTimer = new System.Timers.Timer();
-            switchTimer.Interval = 1000;
-            switchTimer.Elapsed += onSongFinished;
+            if (!Program.settings.auth)
+            {
+            new AuthForm().ShowDialog();
+        }
+                switchTimer = new System.Timers.Timer
+            {
+                Interval = 1000
+            };
+    switchTimer.Elapsed += OnSongFinished;
+            accessToken = Program.settings.access_token;
+            userID = Program.settings.user_id;
         }
 
-        void onSongFinished(object sender, System.Timers.ElapsedEventArgs e)
+        void OnSongFinished(object sender, System.Timers.ElapsedEventArgs e)
         {
                 if (audioFileReader.CurrentTime.TotalMilliseconds > 0 && waveOut.PlaybackState == PlaybackState.Stopped)
                 {
@@ -68,16 +83,13 @@ private DirectSoundOut waveOut = null;
             comboBox1.SelectedIndex = 0;
         }
 
-        private void AudioSearch(string term)
+        private async Task AudioSearchAsync(string term)
         {
-            WebRequest request = WebRequest.Create("https://api.vk.com/method/audio.search?q=" + term + "&count=300&access_token=" + accessToken + "&v=5.60");
-            WebResponse response = request.GetResponse();
-            Stream dataStream = response.GetResponseStream();
-            StreamReader reader = new StreamReader(dataStream);
-            string responseFromServer = reader.ReadToEnd();
-            reader.Close(); response.Close();
-            responseFromServer = HttpUtility.HtmlDecode(responseFromServer);
-            JToken token = JToken.Parse(responseFromServer);
+    HttpClient client = new HttpClient();
+    client.DefaultRequestHeaders.Add("User-Agent", userAgent);
+    HttpResponseMessage responseMessage = await client.GetAsync($"https://api.vk.com/method/audio.search?q={term}&count={count}&access_token={accessToken}&v=5.70");
+    string content = await responseMessage.Content.ReadAsStringAsync();
+            JToken token = JToken.Parse(content);
             AudioList = token["response"]["items"].Children().Select(c => c.ToObject<Audio>()).ToList();
         }
 
@@ -126,11 +138,8 @@ private DirectSoundOut waveOut = null;
                 MessageBox.Show("Cannot play track at this time" + ex.ToString(), "Error");
             }
         }
-            
-        private void ListBox1_MouseDoubleClick(object sender, MouseEventArgs e)
-		{
-            Playfile();
-    }
+
+        private void ListBox1_MouseDoubleClick(object sender, MouseEventArgs e) => Playfile();
 
         private void Download()
         {
@@ -155,17 +164,11 @@ private DirectSoundOut waveOut = null;
                     }
                 }
 
-        private void ProgressChanged(object sender, DownloadProgressChangedEventArgs e)
-        {
-             progressBar1.Value = e.ProgressPercentage;
-        }
+        private void ProgressChanged(object sender, DownloadProgressChangedEventArgs e) => progressBar1.Value = e.ProgressPercentage;
 
-        private void Completed(object sender, AsyncCompletedEventArgs e)
-        {
-            MessageBox.Show("Download completed!", "Success!");
-        }
-        
-        private void TextBox1_KeyDown_1(object sender, KeyEventArgs e)
+        private void Completed(object sender, AsyncCompletedEventArgs e) => MessageBox.Show("Download completed!", "Success!");
+
+        private async void TextBox1_KeyDown_1Async(object sender, KeyEventArgs e)
 		{
             if (textBox1.Text != null && !string.IsNullOrWhiteSpace(textBox1.Text))
             {
@@ -173,7 +176,10 @@ private DirectSoundOut waveOut = null;
                 {
                     case Keys.Enter:
                         textBox1.SelectAll();
-                        backgroundWorker1.RunWorkerAsync();
+                        await AudioSearchAsync(textBox1.Text);
+                        await Display();
+                        listBox1.Focus();
+                        //backgroundWorker1.RunWorkerAsync();
                         break;
                 }
             }
@@ -309,7 +315,7 @@ break;
             CloseWaveOut();
     }
 
-    private void Display()
+    private async Task Display()
     {
             if (AudioList.Count() == 0)
             {
@@ -350,7 +356,7 @@ catch (ArgumentOutOfRangeException)
 
         private void BackgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
         {
-            AudioSearch(textBox1.Text);
+            AudioSearchAsync(textBox1.Text);
         }
 
         private void BackgroundWorker1_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
@@ -378,7 +384,7 @@ catch (ArgumentOutOfRangeException)
 
     private void Getpopular()
     {
-            WebRequest request = WebRequest.Create("https://api.vk.com/method/audio.getPopular?count=1000&access_token=" + accessToken + "&v=5.60");
+            WebRequest request = WebRequest.Create($"https://api.vk.com/method/audio.getPopular?count=1000&access_token={accessToken}&v=5.70");
             WebResponse response = request.GetResponse();
             Stream dataStream = response.GetResponseStream();
             StreamReader reader = new StreamReader(dataStream);
@@ -389,12 +395,9 @@ catch (ArgumentOutOfRangeException)
             AudioList = token["response"].Children().Select(c => c.ToObject<Audio>()).ToList();
     }
 
-    private void Play_Click(object sender, EventArgs e)
-    {
-        Playfile();
-    }
+        private void Play_Click(object sender, EventArgs e) => Playfile();
 
-        private void trackBar1_ValueChanged(object sender, EventArgs e)
+        private void TrackBar1_ValueChanged(object sender, EventArgs e)
         {
             try
             {
@@ -405,7 +408,7 @@ catch (ArgumentOutOfRangeException)
             }
         }
 
-        private void timer1_Tick(object sender, EventArgs e)
+        private void Timer1_Tick(object sender, EventArgs e)
         {
                 if (waveOut != null && audioFileReader != null)
                 {
@@ -418,7 +421,7 @@ catch (ArgumentOutOfRangeException)
             }
         }
 
-        private void exitMenuItem_Click(object sender, EventArgs e)
+        private void ExitMenuItem_Click(object sender, EventArgs e)
         {
             Application.Exit();
         }

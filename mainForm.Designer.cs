@@ -86,7 +86,7 @@
             this.trackBar1.Name = "trackBar1";
             this.trackBar1.Value = 50;
             this.trackBar1.Scroll += new System.EventHandler(this.TrackBar1_Scroll_1);
-            this.trackBar1.ValueChanged += new System.EventHandler(this.trackBar1_ValueChanged);
+            this.trackBar1.ValueChanged += new System.EventHandler(this.TrackBar1_ValueChanged);
             // 
             // trackBar2
             // 
@@ -132,7 +132,7 @@
             // 
             resources.ApplyResources(this.textBox1, "textBox1");
             this.textBox1.Name = "textBox1";
-            this.textBox1.KeyDown += new System.Windows.Forms.KeyEventHandler(this.TextBox1_KeyDown_1);
+            this.textBox1.KeyDown += new System.Windows.Forms.KeyEventHandler(this.TextBox1_KeyDown_1Async);
             // 
             // tabPage3
             // 
@@ -170,7 +170,7 @@
             // 
             this.exitMenuItem.Index = 0;
             resources.ApplyResources(this.exitMenuItem, "exitMenuItem");
-            this.exitMenuItem.Click += new System.EventHandler(this.exitMenuItem_Click);
+            this.exitMenuItem.Click += new System.EventHandler(this.ExitMenuItem_Click);
             // 
             // Help
             // 
@@ -200,7 +200,7 @@
             // 
             this.timer1.Enabled = true;
             this.timer1.Interval = 500;
-            this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
+            this.timer1.Tick += new System.EventHandler(this.Timer1_Tick);
             // 
             // MainForm
             // 
