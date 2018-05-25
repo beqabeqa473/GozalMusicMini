@@ -23,7 +23,6 @@ namespace GozalMusicMini
         private int userID;
         private int count = 200;
         private string userAgent = "KateMobileAndroid/48.2 lite-433 (Android 8.1.0; SDK 27; arm64-v8a; Google Pixel 2 XL; en)";
-        private string apiBaseUrl = "https://api.vk.com/method/";
 
             public List<Audio> AudioList;
 
@@ -43,7 +42,8 @@ namespace GozalMusicMini
         {
             InitializeComponent();
             InitialiseDeviceCombo();
-                    }
+            proxyMenuItem.Checked = Program.settings.use_proxy;
+        }
 
         private async void Form1_LoadAsync(object sender, EventArgs e)
         {
@@ -83,7 +83,16 @@ namespace GozalMusicMini
         }
 
         private async Task<string> MakeVKGetRequest(string method) {
-            HttpClient client = new HttpClient();
+            string apiBaseUrl;
+            if (Program.settings.use_proxy)
+            {
+                apiBaseUrl = "https://vk-api-proxy.xtrafrancyz.net/method/";
+            }
+            else
+            {
+                apiBaseUrl = "https://api.vk.com/method/";
+            }
+                HttpClient client = new HttpClient();
             client.DefaultRequestHeaders.Add("User-Agent", userAgent);
             HttpResponseMessage responseMessage = await client.GetAsync(apiBaseUrl + method);
             string content = await responseMessage.Content.ReadAsStringAsync();
@@ -408,7 +417,22 @@ catch (ArgumentOutOfRangeException)
             }
         }
 
-        private void ExitMenuItem_Click(object sender, EventArgs e)
+        private void ProxyMenuItem_Click(object sender, EventArgs e)
+        {
+            if (!Program.settings.use_proxy)
+            {
+                Program.settings.use_proxy = true;
+                proxyMenuItem.Checked = true;
+            }
+            else
+            {
+                Program.settings.use_proxy = false;
+                proxyMenuItem.Checked = false;
+            }
+            Program.settings.Save();
+        }
+
+            private void ExitMenuItem_Click(object sender, EventArgs e)
         {
             Application.Exit();
         }

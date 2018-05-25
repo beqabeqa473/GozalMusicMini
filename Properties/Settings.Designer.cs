@@ -58,5 +58,17 @@ namespace GozalMusicMini.Properties {
                 this["user_id"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool use_proxy {
+            get {
+                return ((bool)(this["use_proxy"]));
+            }
+            set {
+                this["use_proxy"] = value;
+            }
+        }
     }
 }

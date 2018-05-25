@@ -45,6 +45,7 @@
             this.button2 = new System.Windows.Forms.Button();
             this.menu1 = new System.Windows.Forms.MainMenu(this.components);
             this.File = new System.Windows.Forms.MenuItem();
+            this.proxyMenuItem = new System.Windows.Forms.MenuItem();
             this.exitMenuItem = new System.Windows.Forms.MenuItem();
             this.Help = new System.Windows.Forms.MenuItem();
             this.Documentation = new System.Windows.Forms.MenuItem();
@@ -160,12 +161,19 @@
             // 
             this.File.Index = 0;
             this.File.MenuItems.AddRange(new System.Windows.Forms.MenuItem[] {
+            this.proxyMenuItem,
             this.exitMenuItem});
             resources.ApplyResources(this.File, "File");
             // 
+            // proxyMenuItem
+            // 
+            this.proxyMenuItem.Index = 0;
+            resources.ApplyResources(this.proxyMenuItem, "proxyMenuItem");
+            this.proxyMenuItem.Click += new System.EventHandler(this.ProxyMenuItem_Click);
+            // 
             // exitMenuItem
             // 
-            this.exitMenuItem.Index = 0;
+            this.exitMenuItem.Index = 1;
             resources.ApplyResources(this.exitMenuItem, "exitMenuItem");
             this.exitMenuItem.Click += new System.EventHandler(this.ExitMenuItem_Click);
             // 
@@ -248,6 +256,7 @@
         private System.Windows.Forms.MenuItem About;
         private System.Windows.Forms.Timer timer1;
         private System.Windows.Forms.MenuItem exitMenuItem;
+        private System.Windows.Forms.MenuItem proxyMenuItem;
     }
 }
 
