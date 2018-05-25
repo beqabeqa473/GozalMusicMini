@@ -22,9 +22,10 @@ namespace GozalMusicMini
         private string accessToken;
         private int userID;
         private int count = 200;
-        private string userAgent;
+        private string userAgent = "KateMobileAndroid/48.2 lite-433 (Android 8.1.0; SDK 27; arm64-v8a; Google Pixel 2 XL; en)";
+        private string apiBaseUrl = "https://api.vk.com/method/";
 
-        public List<Audio> AudioList;
+            public List<Audio> AudioList;
 
         public class Audio
         {
@@ -42,10 +43,9 @@ namespace GozalMusicMini
         {
             InitializeComponent();
             InitialiseDeviceCombo();
-            userAgent = "KateMobileAndroid/48.2 lite-433 (Android 8.1.0; SDK 27; arm64-v8a; Google Pixel 2 XL; en)";
-        }
+                    }
 
-        private void Form1_Load(object sender, EventArgs e)
+        private async void Form1_LoadAsync(object sender, EventArgs e)
         {
             if (!Program.settings.auth)
             {
@@ -58,6 +58,9 @@ namespace GozalMusicMini
             switchTimer.Elapsed += OnSongFinished;
             accessToken = Program.settings.access_token;
             userID = Program.settings.user_id;
+            string response = await MakeVKGetRequest($"users.get?user={userID}&access_token={accessToken}&v=5.70");
+            JToken userInfo = JToken.Parse(response);
+            this.Text = this.Text + userInfo["response"][0]["first_name"].ToString() + " - " + userInfo["response"][0]["last_name"].ToString();
         }
 
         void OnSongFinished(object sender, System.Timers.ElapsedEventArgs e)
@@ -79,36 +82,35 @@ namespace GozalMusicMini
             comboBox1.SelectedIndex = 0;
         }
 
-        private async Task AudioSearchAsync(string term)
-        {
-            textBox1.Enabled = false;
+        private async Task<string> MakeVKGetRequest(string method) {
             HttpClient client = new HttpClient();
             client.DefaultRequestHeaders.Add("User-Agent", userAgent);
-            HttpResponseMessage responseMessage = await client.GetAsync($"https://api.vk.com/method/audio.search?q={term}&count={count}&access_token={accessToken}&v=5.70");
+            HttpResponseMessage responseMessage = await client.GetAsync(apiBaseUrl + method);
             string content = await responseMessage.Content.ReadAsStringAsync();
-            JToken token = JToken.Parse(content);
+            return content;
+        }
+
+            private async Task AudioSearchAsync(string term)
+        {
+            textBox1.Enabled = false;
+            string response = await MakeVKGetRequest($"audio.search?q={term}&count={count}&access_token={accessToken}&v=5.70");
+            JToken token = JToken.Parse(response);
             AudioList = token["response"]["items"].Children().Select(c => c.ToObject<Audio>()).ToList();
             textBox1.Enabled = true;
         }
 
             private async Task AudioGetAsync(int ownerid)
         {
-            HttpClient client = new HttpClient();
-            client.DefaultRequestHeaders.Add("User-Agent", userAgent);
-            HttpResponseMessage responseMessage = await client.GetAsync($"https://api.vk.com/method/audio.get?owner_id={ownerid}&count=1000&access_token={accessToken}&v=5.70");
-            string content = await responseMessage.Content.ReadAsStringAsync();
-            JToken token = JToken.Parse(content);
+            string response = await MakeVKGetRequest($"audio.get?owner_id={ownerid}&count=1000&access_token={accessToken}&v=5.70");
+            JToken token = JToken.Parse(response);
             AudioList = token["response"]["items"].Children().Select(c => c.ToObject<Audio>()).ToList();
         }
 
         private async Task GetpopularAsync()
         {
             button2.Enabled = false;
-            HttpClient client = new HttpClient();
-            client.DefaultRequestHeaders.Add("User-Agent", userAgent);
-            HttpResponseMessage responseMessage = await client.GetAsync($"https://api.vk.com/method/audio.getPopular?count=1000&access_token={accessToken}&v=5.70");
-            string content = await responseMessage.Content.ReadAsStringAsync();
-            JToken token = JToken.Parse(content);
+            string response = await MakeVKGetRequest($"audio.getPopular?count=1000&access_token={accessToken}&v=5.70");
+            JToken token = JToken.Parse(response);
             AudioList = token["response"].Children().Select(c => c.ToObject<Audio>()).ToList();
             button2.Enabled = true;
         }
