@@ -1,17 +1,13 @@
-﻿using GozalMusicMini.Properties;
-using NAudio.Wave;
+﻿using NAudio.Wave;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using System.Web;
 using System.Windows.Forms;
 
 namespace GozalMusicMini
@@ -53,27 +49,27 @@ namespace GozalMusicMini
         {
             if (!Program.settings.auth)
             {
-            new AuthForm().ShowDialog();
-        }
-                switchTimer = new System.Timers.Timer
+                new AuthForm().ShowDialog();
+            }
+            switchTimer = new System.Timers.Timer
             {
                 Interval = 1000
             };
-    switchTimer.Elapsed += OnSongFinished;
+            switchTimer.Elapsed += OnSongFinished;
             accessToken = Program.settings.access_token;
             userID = Program.settings.user_id;
         }
 
         void OnSongFinished(object sender, System.Timers.ElapsedEventArgs e)
         {
-                if (audioFileReader.CurrentTime.TotalMilliseconds > 0 && waveOut.PlaybackState == PlaybackState.Stopped)
-                {
-                    listBox1.SetSelected(listBox1.SelectedIndex + 1, true);
-                    PlaySound(AudioList[listBox1.SelectedIndex].Url.ToString());
-                }
+            if (audioFileReader.CurrentTime.TotalMilliseconds > 0 && waveOut.PlaybackState == PlaybackState.Stopped)
+            {
+                listBox1.SetSelected(listBox1.SelectedIndex + 1, true);
+                PlaySound(AudioList[listBox1.SelectedIndex].Url.ToString());
             }
+        }
 
-            private void InitialiseDeviceCombo()
+        private void InitialiseDeviceCombo()
         {
             comboBox1.DisplayMember = "Description";
             foreach (var device in DirectSoundOut.Devices)
@@ -85,12 +81,36 @@ namespace GozalMusicMini
 
         private async Task AudioSearchAsync(string term)
         {
-    HttpClient client = new HttpClient();
-    client.DefaultRequestHeaders.Add("User-Agent", userAgent);
-    HttpResponseMessage responseMessage = await client.GetAsync($"https://api.vk.com/method/audio.search?q={term}&count={count}&access_token={accessToken}&v=5.70");
-    string content = await responseMessage.Content.ReadAsStringAsync();
+            textBox1.Enabled = false;
+            HttpClient client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", userAgent);
+            HttpResponseMessage responseMessage = await client.GetAsync($"https://api.vk.com/method/audio.search?q={term}&count={count}&access_token={accessToken}&v=5.70");
+            string content = await responseMessage.Content.ReadAsStringAsync();
             JToken token = JToken.Parse(content);
             AudioList = token["response"]["items"].Children().Select(c => c.ToObject<Audio>()).ToList();
+            textBox1.Enabled = true;
+        }
+
+            private async Task AudioGetAsync(int ownerid)
+        {
+            HttpClient client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", userAgent);
+            HttpResponseMessage responseMessage = await client.GetAsync($"https://api.vk.com/method/audio.get?owner_id={ownerid}&count=1000&access_token={accessToken}&v=5.70");
+            string content = await responseMessage.Content.ReadAsStringAsync();
+            JToken token = JToken.Parse(content);
+            AudioList = token["response"]["items"].Children().Select(c => c.ToObject<Audio>()).ToList();
+        }
+
+        private async Task GetpopularAsync()
+        {
+            button2.Enabled = false;
+            HttpClient client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", userAgent);
+            HttpResponseMessage responseMessage = await client.GetAsync($"https://api.vk.com/method/audio.getPopular?count=1000&access_token={accessToken}&v=5.70");
+            string content = await responseMessage.Content.ReadAsStringAsync();
+            JToken token = JToken.Parse(content);
+            AudioList = token["response"].Children().Select(c => c.ToObject<Audio>()).ToList();
+            button2.Enabled = true;
         }
 
         public void PlaySound(string filename)
@@ -179,7 +199,6 @@ namespace GozalMusicMini
                         await AudioSearchAsync(textBox1.Text);
                         await Display();
                         listBox1.Focus();
-                        //backgroundWorker1.RunWorkerAsync();
                         break;
                 }
             }
@@ -354,46 +373,12 @@ catch (ArgumentOutOfRangeException)
     {
             }
 
-        private void BackgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
-        {
-            AudioSearchAsync(textBox1.Text);
-        }
-
-        private void BackgroundWorker1_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+    private async void Button2_ClickAsync(object sender, EventArgs e)
     {
-        Display();
-        listBox1.Focus();
-    }
-
-    private void BackgroundWorker3_DoWork(object sender, DoWorkEventArgs e)
-    {
-            Getpopular();
-                }
-
-    private void BackgroundWorker3_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
-    {
-        Display();
+            await GetpopularAsync();
+            await Display();
             listBox1.Focus();
         }
-
-    private void Button2_Click(object sender, EventArgs e)
-    {
-            //Getpopular();
-            backgroundWorker3.RunWorkerAsync();
-        }
-
-    private void Getpopular()
-    {
-            WebRequest request = WebRequest.Create($"https://api.vk.com/method/audio.getPopular?count=1000&access_token={accessToken}&v=5.70");
-            WebResponse response = request.GetResponse();
-            Stream dataStream = response.GetResponseStream();
-            StreamReader reader = new StreamReader(dataStream);
-            string responseFromServer = reader.ReadToEnd();
-            reader.Close(); response.Close();
-            responseFromServer = HttpUtility.HtmlDecode(responseFromServer);
-            JToken token = JToken.Parse(responseFromServer);
-            AudioList = token["response"].Children().Select(c => c.ToObject<Audio>()).ToList();
-    }
 
         private void Play_Click(object sender, EventArgs e) => Playfile();
 
@@ -425,5 +410,14 @@ catch (ArgumentOutOfRangeException)
         {
             Application.Exit();
         }
+
+        private async void TabControl1_SelectedIndexChangedAsync(object sender, EventArgs e)
+        {
+            if (tabControl1.SelectedTab == tabPage2) {
+                await AudioGetAsync(userID);
+                await Display();
+                listBox1.Focus();
+            }
+            }
     }
 }
