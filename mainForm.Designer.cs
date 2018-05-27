@@ -52,6 +52,9 @@
             this.Changelog = new System.Windows.Forms.MenuItem();
             this.About = new System.Windows.Forms.MenuItem();
             this.timer1 = new System.Windows.Forms.Timer(this.components);
+            this.trayIcon = new System.Windows.Forms.NotifyIcon(this.components);
+            this.trayIconContextMenu = new System.Windows.Forms.ContextMenu();
+            this.trayExit = new System.Windows.Forms.MenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.trackBar1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trackBar2)).BeginInit();
             this.tabControl1.SuspendLayout();
@@ -207,6 +210,23 @@
             this.timer1.Interval = 500;
             this.timer1.Tick += new System.EventHandler(this.Timer1_Tick);
             // 
+            // trayIcon
+            // 
+            this.trayIcon.ContextMenu = this.trayIconContextMenu;
+            resources.ApplyResources(this.trayIcon, "trayIcon");
+            this.trayIcon.MouseClick += new System.Windows.Forms.MouseEventHandler(this.trayIcon_MouseClick);
+            // 
+            // trayIconContextMenu
+            // 
+            this.trayIconContextMenu.MenuItems.AddRange(new System.Windows.Forms.MenuItem[] {
+            this.trayExit});
+            // 
+            // trayExit
+            // 
+            this.trayExit.Index = 0;
+            resources.ApplyResources(this.trayExit, "trayExit");
+            this.trayExit.Click += new System.EventHandler(this.ExitMenuItem_Click);
+            // 
             // MainForm
             // 
             resources.ApplyResources(this, "$this");
@@ -217,11 +237,13 @@
             this.Controls.Add(this.trackBar2);
             this.Controls.Add(this.trackBar1);
             this.Controls.Add(this.listBox1);
+            this.KeyPreview = true;
             this.MaximizeBox = false;
             this.Menu = this.menu1;
             this.Name = "MainForm";
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.MainForm_FormClosed);
             this.Load += new System.EventHandler(this.Form1_LoadAsync);
+            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.MainForm_KeyDown);
             ((System.ComponentModel.ISupportInitialize)(this.trackBar1)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.trackBar2)).EndInit();
             this.tabControl1.ResumeLayout(false);
@@ -257,6 +279,9 @@
         private System.Windows.Forms.Timer timer1;
         private System.Windows.Forms.MenuItem exitMenuItem;
         private System.Windows.Forms.MenuItem proxyMenuItem;
+        private System.Windows.Forms.NotifyIcon trayIcon;
+        private System.Windows.Forms.ContextMenu trayIconContextMenu;
+        private System.Windows.Forms.MenuItem trayExit;
     }
 }
 

@@ -445,5 +445,37 @@ catch (ArgumentOutOfRangeException)
                 listBox1.Focus();
             }
             }
+
+        private void MainForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyData == Keys.Escape)
+            {
+                DialogResult dialogResult = MessageBox.Show("Do you want to hide window to system tray?", "Hide window", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (dialogResult == DialogResult.Yes)
+                {
+                    this.WindowState = FormWindowState.Minimized;
+                    this.ShowInTaskbar = false;
+                    this.Hide();
+                    this.trayIcon.Visible = true;
+                }
+            }
+            }
+
+        private void ShowWindow() {
+            this.WindowState = FormWindowState.Normal;
+            this.ShowInTaskbar = true;
+            this.Show();
+            this.Activate();
+            this.trayIcon.Visible = false;
+        }
+
+        private void trayIcon_MouseClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                ShowWindow();
+            }
+            }
+
     }
 }
