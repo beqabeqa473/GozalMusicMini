@@ -19,46 +19,56 @@ namespace GozalMusicMini
         private Guid PlaybackDeviceID;
         private System.Timers.Timer switchTimer;
 
-        private string accessToken;
+        public string accessToken;
         private int userID;
-        private int count = 200;
-        private string userAgent = "KateMobileAndroid/48.2 lite-433 (Android 8.1.0; SDK 27; arm64-v8a; Google Pixel 2 XL; en)";
+        IniFile settings;
+        bool minimizedToTray;
 
-            public List<Audio> AudioList;
+        public List<Audio> AudioList;
 
-        public class Audio
-        {
-            public int Aid { get; set; }
-            public int Owner_id { get; set; }
-            public string Artist { get; set; }
-            public string Title { get; set; }
-            public int Duration { get; set; }
-            public string Url { get; set; }
-            public string Lyrics_id { get; set; }
-            public int Genre { get; set; }
-        }
-
-        public MainForm()
+                        public MainForm()
         {
             InitializeComponent();
+            string[] treeNodes = new string[3];
+            treeNodes[0] = "Search";
+            treeNodes[1] = "My audios";
+            treeNodes[2] = "Popular";
+            foreach (string snode in treeNodes)
+            {
+                TreeNode node = new TreeNode(snode);
+                treeView1.Nodes.Add(node);
+            }
             InitialiseDeviceCombo();
-            proxyMenuItem.Checked = Program.settings.use_proxy;
+            listView1.Columns.Add("Artist");
+            listView1.Columns.Add("Title");
+            listView1.Columns.Add("Duration");
+            settings = new IniFile();
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == SingleInstance.WM_SHOWFIRSTINSTANCE)
+            {
+                ShowWindow();
+            }
+            base.WndProc(ref m);
         }
 
         private async void Form1_LoadAsync(object sender, EventArgs e)
         {
-            if (!Program.settings.auth)
-            {
-                new AuthForm().ShowDialog();
-            }
             switchTimer = new System.Timers.Timer
             {
                 Interval = 1000
             };
             switchTimer.Elapsed += OnSongFinished;
-            accessToken = Program.settings.access_token;
-            userID = Program.settings.user_id;
-            string response = await MakeVKGetRequest($"users.get?user={userID}&access_token={accessToken}&v=5.70");
+            accessToken = settings.Read("Token");
+            userID = Int32.Parse(settings.Read("UserID"));
+            var values = new Dictionary<string, string>
+{
+{"method", "flname"},
+{"access_token", accessToken}
+};
+            string response = await MakeVKGetRequest(values);
             JToken userInfo = JToken.Parse(response);
             this.Text = this.Text + userInfo["response"][0]["first_name"].ToString() + " - " + userInfo["response"][0]["last_name"].ToString();
         }
@@ -67,8 +77,8 @@ namespace GozalMusicMini
         {
             if (audioFileReader.CurrentTime.TotalMilliseconds > 0 && waveOut.PlaybackState == PlaybackState.Stopped)
             {
-                listBox1.SetSelected(listBox1.SelectedIndex + 1, true);
-                PlaySound(AudioList[listBox1.SelectedIndex].Url.ToString());
+                listView1.Items[listView1.SelectedIndices[0] + 1].Selected = true;
+                PlaySound(AudioList[listView1.SelectedIndices[0]].Url.ToString());
             }
         }
 
@@ -82,49 +92,137 @@ namespace GozalMusicMini
             comboBox1.SelectedIndex = 0;
         }
 
-        private async Task<string> MakeVKGetRequest(string method) {
-            string apiBaseUrl;
-            if (Program.settings.use_proxy)
-            {
-                apiBaseUrl = "https://vk-api-proxy.xtrafrancyz.net/method/";
-            }
-            else
-            {
-                apiBaseUrl = "https://api.vk.com/method/";
-            }
+        public async Task<string> MakeVKGetRequest(Dictionary<string, string> data)
+        {
+            string apiBaseUrl = "https://gozaltech.org/api/";
                 HttpClient client = new HttpClient();
-            client.DefaultRequestHeaders.Add("User-Agent", userAgent);
-            HttpResponseMessage responseMessage = await client.GetAsync(apiBaseUrl + method);
-            string content = await responseMessage.Content.ReadAsStringAsync();
-            return content;
+            var postData = new FormUrlEncodedContent(data);
+            HttpResponseMessage responseMessage = await client.PostAsync(apiBaseUrl, postData);
+            string responseBody = await responseMessage.Content.ReadAsStringAsync();
+            return responseBody;
         }
 
-            private async Task AudioSearchAsync(string term)
+        private async Task AudioSearchAsync(string term)
         {
-            textBox1.Enabled = false;
-            string response = await MakeVKGetRequest($"audio.search?q={term}&count={count}&access_token={accessToken}&v=5.70");
+            var values = new Dictionary<string, string>
+{
+{"method", "audiosearch"},
+{"access_token", accessToken},
+{"query", term}
+};
+            string response = await MakeVKGetRequest(values);
             JToken token = JToken.Parse(response);
             AudioList = token["response"]["items"].Children().Select(c => c.ToObject<Audio>()).ToList();
-            textBox1.Enabled = true;
+            Display();
+            listView1.Focus();
         }
 
-            private async Task AudioGetAsync(int ownerid)
+        private async Task AudioGetAsync()
         {
-            string response = await MakeVKGetRequest($"audio.get?owner_id={ownerid}&count=1000&access_token={accessToken}&v=5.70");
+            var values = new Dictionary<string, string>
+{
+{"method", "audioget"},
+{"access_token", accessToken}
+};
+            string response = await MakeVKGetRequest(values);
             JToken token = JToken.Parse(response);
             AudioList = token["response"]["items"].Children().Select(c => c.ToObject<Audio>()).ToList();
+            Display();
+            listView1.Focus();
         }
 
         private async Task GetpopularAsync()
         {
             button2.Enabled = false;
-            string response = await MakeVKGetRequest($"audio.getPopular?count=1000&access_token={accessToken}&v=5.70");
+            var values = new Dictionary<string, string>
+{
+{"method", "audiopopular"},
+{"access_token", accessToken}
+};
+            string response = await MakeVKGetRequest(values);
             JToken token = JToken.Parse(response);
             AudioList = token["response"].Children().Select(c => c.ToObject<Audio>()).ToList();
+            Display();
+            listView1.Focus();
             button2.Enabled = true;
         }
 
-        public void PlaySound(string filename)
+        private async Task AudioAddAsync(int aId, int oId)
+        {
+            var values = new Dictionary<string, string>
+{
+{"method", "audioadd"},
+{"audio_id", aId.ToString()},
+{"owner_id", oId.ToString()},
+{"access_token", accessToken}
+};
+            string response = await MakeVKGetRequest(values);
+            if (response.Contains("response"))
+            {
+                MessageBox.Show("Added audio to your audio library", "Success");
+            }
+            else
+            {
+                MessageBox.Show("Could not dd audio to your audio library", "Error");
+            }
+            }
+
+        private async Task AudioDeleteAsync(int aId, int oId)
+        {
+            DialogResult dialogResult = MessageBox.Show("Do you want to delete " + AudioList[listView1.SelectedIndices[0]].Title + "from your library?", "Delete audio", MessageBoxButtons.YesNo);
+            if (dialogResult == DialogResult.Yes)
+            {
+                var values = new Dictionary<string, string>
+{
+{"method", "audiodelete"},
+{"audio_id", aId.ToString()},
+{"owner_id", oId.ToString()},
+{"access_token", accessToken}
+};
+                string response = await MakeVKGetRequest(values);
+                if (response.Contains("response"))
+                {
+                    AudioList.RemoveAt(listView1.SelectedIndices[0]);
+                    listView1.Items.RemoveAt(listView1.SelectedIndices[0]);
+                    MessageBox.Show("Deleted audio from your audio library", "Success");
+                }
+                else
+                {
+                    MessageBox.Show("Could not delete audio from your audio library", "Error");
+                }
+            }
+            }
+
+        private async void AudioEditAsync()
+        {
+            var values = new Dictionary<string, string>
+{
+{"method", "audiogetlyrics"},
+{"lyrics_id", AudioList[listView1.SelectedIndices[0]].Lyrics_id.ToString()},
+{"access_token", accessToken}
+};
+            string response = await MakeVKGetRequest(values);
+            EditAudio audioeditfrm = new EditAudio
+            {
+                Ownerid = AudioList[listView1.SelectedIndices[0]].Owner_id,
+                Id = AudioList[listView1.SelectedIndices[0]].id,
+                Artist = AudioList[listView1.SelectedIndices[0]].Artist,
+                Title = AudioList[listView1.SelectedIndices[0]].Title,
+                Genre_id = AudioList[listView1.SelectedIndices[0]].Genre_id
+            };
+            if (response.Contains("response"))
+            {
+                JToken lyrics = JToken.Parse(response);
+                audioeditfrm.LyricsText = lyrics["response"]["text"].ToString(); ;
+            }
+            else
+            {
+                audioeditfrm.LyricsText = "No lyrics";
+            }
+            audioeditfrm.Show();
+        }
+
+            public void PlaySound(string filename)
         {
             CloseWaveOut();
             var devicesList = comboBox1.Items.Cast<DirectSoundDeviceInfo>().ToList();
@@ -143,8 +241,8 @@ namespace GozalMusicMini
 
         //void AudioOutput_PlaybackStopped(object sender, StoppedEventArgs e)
         //{
-                //listBox1.SetSelected(listBox1.SelectedIndex + 1, true);
-                //PlaySound(AudioList[listBox1.SelectedIndex].Url.ToString());
+                //listView1.SetSelected(listView1.SelectedIndex + 1, true);
+                //PlaySound(AudioList[listView1.SelectedIndex].Url.ToString());
             //}        
 
         private void CloseWaveOut()
@@ -162,7 +260,7 @@ namespace GozalMusicMini
         {
             try
             {
-                PlaySound(AudioList[listBox1.SelectedIndex].Url.ToString());
+                PlaySound(AudioList[listView1.SelectedIndices[0]].Url.ToString());
             }
             catch (Exception ex)
             {
@@ -170,34 +268,65 @@ namespace GozalMusicMini
             }
         }
 
-        private void ListBox1_MouseDoubleClick(object sender, MouseEventArgs e) => Playfile();
+        private void ListView1_MouseDoubleClick(object sender, MouseEventArgs e) => Playfile();
 
-        private void Download()
+        private void DownloadSingle()
         {
-            WebClient web = new WebClient();
-            web.DownloadFileCompleted += new AsyncCompletedEventHandler(Completed);
-            web.DownloadProgressChanged += new DownloadProgressChangedEventHandler(ProgressChanged);
+            string fName = AudioList[listView1.SelectedIndices[0]].Artist + " - " + AudioList[listView1.SelectedIndices[0]].Title;
             var dialog = new SaveFileDialog()
             {
                 Filter = "Audio (*.mp3)|*.mp3",
-                FileName = AudioList[listBox1.SelectedIndex].Artist + " - " + AudioList[listBox1.SelectedIndex].Title,
+                FileName = fName,
                 RestoreDirectory = true,
                 AddExtension = true
             };
             var result = dialog.ShowDialog();
             if (result == DialogResult.OK)
             {
-                web.DownloadFileAsync(new Uri(@AudioList[listBox1.SelectedIndex].Url.ToString()), dialog.FileName);
-            }
-                    if (web != null)
+                using (var webClient = new WebClient())
+                {
+                    webClient.DownloadFileCompleted += new AsyncCompletedEventHandler(Completed);
+                    webClient.DownloadProgressChanged += new DownloadProgressChangedEventHandler(ProgressChanged);
+                    webClient.QueryString.Add("file", fName);
+                    webClient.DownloadFileAsync(new Uri(@AudioList[listView1.SelectedIndices[0]].Url.ToString()), dialog.FileName);
+                }
+                }
+                }
+
+        private async Task DownloadMultipleAsync()
+        {
+            string fName = "";
+            var dialog = new FolderBrowserDialog()
+            {
+                Description = "Select a directory to save selected tracks",
+                ShowNewFolderButton = true
+            };
+            var result = dialog.ShowDialog();
+            if (result == DialogResult.OK)
+            {
+                using (var webClient = new WebClient())
+                {
+                    webClient.DownloadFileCompleted += new AsyncCompletedEventHandler(Completed);
+                    webClient.DownloadProgressChanged += new DownloadProgressChangedEventHandler(ProgressChanged);
+                    webClient.QueryString.Add("file", fName);
+                    foreach (ListViewItem item in listView1.CheckedItems)
                     {
-                        web.Dispose();
+                        fName = AudioList[item.Index].Artist + " - " + AudioList[item.Index].Title + ".mp3";
+                        await webClient.DownloadFileTaskAsync(AudioList[item.Index].Url, dialog.SelectedPath  + @"\" + fName);
                     }
                 }
+                }
+            }
 
         private void ProgressChanged(object sender, DownloadProgressChangedEventArgs e) => progressBar1.Value = e.ProgressPercentage;
 
-        private void Completed(object sender, AsyncCompletedEventArgs e) => MessageBox.Show("Download completed!", "Success!");
+        private void Completed(object sender, AsyncCompletedEventArgs e)
+        {
+            string fName = ((WebClient)(sender)).QueryString["file"];
+            trayIcon.Visible = true;
+            trayIcon.ShowBalloonTip(5000, "Success", $"File {fName} has been successfully downloaded", ToolTipIcon.Info);
+            trayIcon.Visible = false;
+        }
 
         private async void TextBox1_KeyDown_1Async(object sender, KeyEventArgs e)
 		{
@@ -208,8 +337,6 @@ namespace GozalMusicMini
                     case Keys.Enter:
                         textBox1.SelectAll();
                         await AudioSearchAsync(textBox1.Text);
-                        await Display();
-                        listBox1.Focus();
                         break;
                 }
             }
@@ -217,29 +344,29 @@ namespace GozalMusicMini
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            switch(keyData)
-       {
-           case Keys.Control | Keys.Down:
-               try
-               {
+            switch (keyData)
+            {
+                case Keys.Control | Keys.Down:
+                    try
+                    {
                         trackBar1.Value -= 1;
                         return true;
-               }
-               catch (Exception ex) when(ex is NullReferenceException || ex is ArgumentOutOfRangeException)
-               {
-                   return true;
-               }
-           case Keys.Control | Keys.Up:
-               try
-               {
-                        trackBar1.Value += 1;
-                        return true;
-               }
+                    }
                     catch (Exception ex) when (ex is NullReferenceException || ex is ArgumentOutOfRangeException)
                     {
                         return true;
-               }
-           case Keys.Control | Keys.Right:
+                    }
+                case Keys.Control | Keys.Up:
+                    try
+                    {
+                        trackBar1.Value += 1;
+                        return true;
+                    }
+                    catch (Exception ex) when (ex is NullReferenceException || ex is ArgumentOutOfRangeException)
+                    {
+                        return true;
+                    }
+                case Keys.Control | Keys.Right:
                     if (textBox1.Focused)
                     {
                         break;
@@ -256,7 +383,7 @@ namespace GozalMusicMini
                             return true;
                         }
                     }
-           case Keys.Control | Keys.Left:
+                case Keys.Control | Keys.Left:
                     if (textBox1.Focused)
                     {
                         break;
@@ -273,20 +400,45 @@ namespace GozalMusicMini
                             return true;
                         }
                     }
-           case Keys.Control | Keys.Shift | Keys.Alt | Keys.Return:
-               Download();
-                return true;
                 }
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
-        private void ListBox1_KeyDown_1(object sender, KeyEventArgs e)
+        private async void ListView1_KeyDownAsync(object sender, KeyEventArgs e)
         {
             switch (e.KeyData)
             {
     case Keys.Enter:
 Playfile();
 break;
+                case Keys.Shift | Keys.Enter:
+                    if (treeView1.SelectedNode.Text != "My audios")
+                    {
+                        await AudioAddAsync(AudioList[listView1.SelectedIndices[0]].id, AudioList[listView1.SelectedIndices[0]].Owner_id);
+                    }
+                        break;
+                case Keys.Delete:
+                    if (treeView1.SelectedNode.Text == "My audios")
+                    {
+                        await AudioDeleteAsync(AudioList[listView1.SelectedIndices[0]].id, AudioList[listView1.SelectedIndices[0]].Owner_id);
+                    }
+                        break;
+                case Keys.Control | Keys.Shift | Keys.Alt | Keys.Return:
+                    if (listView1.CheckedItems.Count > 1)
+                    {
+                        await DownloadMultipleAsync();
+                    }
+                    else
+                    {
+                        DownloadSingle();
+                    }
+                    break;
+                case Keys.F2:
+                    if (treeView1.SelectedNode.Text == "My audios")
+                    {
+                        AudioEditAsync();
+                    }
+                    break;
                 case Keys.Space:
                 case Keys.MediaPlayPause:
                     if (waveOut != null)
@@ -300,7 +452,8 @@ break;
                             waveOut.Play();
                         }
                     }
-                        break;
+                    e.Handled = e.SuppressKeyPress = true;
+                    break;
 }
         }
 
@@ -343,15 +496,15 @@ break;
             switchTimer.Stop();
             switchTimer.Dispose();
             CloseWaveOut();
-    }
+        }
 
-    private async Task Display()
+    private void Display()
     {
             if (AudioList.Count() == 0)
             {
                 MessageBox.Show("Nothing found", "no results!");
             }
-    listBox1.Items.Clear();
+    listView1.Items.Clear();
             for (int i = AudioList.Count -1; i >= 0; i--)
             {
                 if (AudioList[i].Url == string.Empty)
@@ -362,18 +515,19 @@ break;
 
             for (int i = 0; i < AudioList.Count; i++)
             {
-                string data = AudioList[i].Artist + " - " + AudioList[i].Title;
-            data = data.TrimStart();
-            int seconds = AudioList[i].Duration;
-            var timespan = TimeSpan.FromSeconds(seconds);
-            listBox1.Items.Add(data + " " + timespan.ToString(@"mm\:ss"));
-           //listBox1.Items.Add(new ListBoxItem("name", "value"));
+                int seconds = AudioList[i].Duration;
+                var timespan = TimeSpan.FromSeconds(seconds);
+                ListViewItem item = new ListViewItem();
+                item.Text = AudioList[i].Artist.Trim();
+                item.SubItems.Add(AudioList[i].Title.Trim());
+                item.SubItems.Add(timespan.ToString(@"mm\:ss"));
+                listView1.Items.Add(item);
         }
         
-        listBox1.AccessibleName = listBox1.Items.Count + "Results found";
+        listView1.AccessibleName = listView1.Items.Count + "Results found";
         try
         {
-            listBox1.SetSelected(0, true);
+                listView1.Items[0].Selected = true;
         }
 catch (ArgumentOutOfRangeException)
         {            
@@ -384,11 +538,9 @@ catch (ArgumentOutOfRangeException)
     {
             }
 
-    private async void Button2_ClickAsync(object sender, EventArgs e)
-    {
+        private async void Button2_ClickAsync(object sender, EventArgs e)
+        {
             await GetpopularAsync();
-            await Display();
-            listBox1.Focus();
         }
 
         private void Play_Click(object sender, EventArgs e) => Playfile();
@@ -417,34 +569,10 @@ catch (ArgumentOutOfRangeException)
             }
         }
 
-        private void ProxyMenuItem_Click(object sender, EventArgs e)
-        {
-            if (!Program.settings.use_proxy)
-            {
-                Program.settings.use_proxy = true;
-                proxyMenuItem.Checked = true;
-            }
-            else
-            {
-                Program.settings.use_proxy = false;
-                proxyMenuItem.Checked = false;
-            }
-            Program.settings.Save();
-        }
-
             private void ExitMenuItem_Click(object sender, EventArgs e)
         {
             Application.Exit();
         }
-
-        private async void TabControl1_SelectedIndexChangedAsync(object sender, EventArgs e)
-        {
-            if (tabControl1.SelectedTab == tabPage2) {
-                await AudioGetAsync(userID);
-                await Display();
-                listBox1.Focus();
-            }
-            }
 
         private void MainForm_KeyDown(object sender, KeyEventArgs e)
         {
@@ -457,17 +585,26 @@ catch (ArgumentOutOfRangeException)
                     this.ShowInTaskbar = false;
                     this.Hide();
                     this.trayIcon.Visible = true;
+                    minimizedToTray = true;
                 }
             }
             }
 
         private void ShowWindow() {
-            this.WindowState = FormWindowState.Normal;
-            this.ShowInTaskbar = true;
-            this.Show();
-            this.Activate();
-            this.trayIcon.Visible = false;
-        }
+            if (minimizedToTray)
+            {
+                this.WindowState = FormWindowState.Normal;
+                this.ShowInTaskbar = true;
+                this.Show();
+                this.Activate();
+                this.trayIcon.Visible = false;
+                minimizedToTray = false;
+            }
+            else
+            {
+                WinApi.ShowToFront(this.Handle);
+            }
+            }
 
         private void trayIcon_MouseClick(object sender, MouseEventArgs e)
         {
@@ -477,5 +614,60 @@ catch (ArgumentOutOfRangeException)
             }
             }
 
+        private async void treeView1_AfterSelectAsync(object sender, TreeViewEventArgs e)
+        {
+            if (e.Node.Text == "Search")
+            {
+                textBox1.Enabled = true;
+                button2.Enabled = false;
+            }
+            else if (e.Node.Text == "My audios") {
+                textBox1.Enabled = false;
+                button2.Enabled = false;
+                await AudioGetAsync();
+            }
+            else if (e.Node.Text == "Popular")
+            {
+                textBox1.Enabled = false;
+                button2.Enabled = true;
+            }
+            }
+
+        private async void Add_ClickAsync(object sender, EventArgs e)
+        {
+            await AudioAddAsync(AudioList[listView1.SelectedIndices[0]].id, AudioList[listView1.SelectedIndices[0]].Owner_id);
+        }
+
+        private void Edit_Click(object sender, EventArgs e)
+        {
+            AudioEditAsync();
+        }
+
+        private async void Delete_ClickAsync(object sender, EventArgs e)
+        {
+            await AudioDeleteAsync(AudioList[listView1.SelectedIndices[0]].id, AudioList[listView1.SelectedIndices[0]].Owner_id);
+        }
+
+        private void listView1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (treeView1.SelectedNode.Text != "My audios")
+            {
+                Add.Enabled = true;
+            }
+            else
+            {
+                Add.Enabled = false;
+            }
+            if (treeView1.SelectedNode.Text == "My audios")
+            {
+                Edit.Enabled = true;
+                Delete.Enabled = true;
+            }
+            else
+            {
+                Edit.Enabled = false;
+                Delete.Enabled = false;
+            }
+        }
     }
 }

@@ -92,12 +92,22 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Audio.cs" />
+    <Compile Include="AudioGenre.cs" />
+    <Compile Include="AudioSort.cs" />
     <Compile Include="AuthForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="AuthForm.Designer.cs">
       <DependentUpon>AuthForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="EditAudio.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="EditAudio.Designer.cs">
+      <DependentUpon>EditAudio.cs</DependentUpon>
+    </Compile>
+    <Compile Include="IniFile.cs" />
     <Compile Include="mainForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -105,9 +115,21 @@
       <DependentUpon>mainForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Program.cs" />
+    <Compile Include="ProgramInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SingleInstance.cs" />
+    <Compile Include="WinApi.cs" />
+    <Compile Include="Starter_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Starter_Form.Designer.cs">
+      <DependentUpon>Starter_Form.cs</DependentUpon>
+    </Compile>
     <EmbeddedResource Include="AuthForm.resx">
       <DependentUpon>AuthForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="EditAudio.resx">
+      <DependentUpon>EditAudio.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="mainForm.resx">
       <DependentUpon>mainForm.cs</DependentUpon>
@@ -125,6 +147,9 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
+    <EmbeddedResource Include="Starter_Form.resx">
+      <DependentUpon>Starter_Form.cs</DependentUpon>
+    </EmbeddedResource>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

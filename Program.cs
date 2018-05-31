@@ -1,24 +1,33 @@
-﻿using GozalMusicMini.Properties;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System;
+using System.ComponentModel;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace GozalMusicMini
 {
-	static class Program
-	{
-        public static Settings settings = new Settings();
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
+    static class Program
+    {
         [STAThread]
-		static void Main()
-		{
-			Application.EnableVisualStyles();
-			Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainForm());
-		}
+        static void Main()
+        {
+            if (!SingleInstance.Start())
+            {
+                SingleInstance.ShowFirstInstance();
+                return;
+            }
+            Starter_Form starterForm = new Starter_Form();
+            Application.EnableVisualStyles();
+            //Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(starterForm);
+            if (starterForm.IsLoggedIn)
+            {
+                Application.Run(new MainForm());
+            }
+            else
+            {
+                Application.Run(new AuthForm());
+            }
+            SingleInstance.Stop();
+        }
     }
 }

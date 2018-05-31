@@ -22,53 +22,5 @@ namespace GozalMusicMini.Properties {
                 return defaultInstance;
             }
         }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool auth {
-            get {
-                return ((bool)(this["auth"]));
-            }
-            set {
-                this["auth"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string access_token {
-            get {
-                return ((string)(this["access_token"]));
-            }
-            set {
-                this["access_token"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("0")]
-        public int user_id {
-            get {
-                return ((int)(this["user_id"]));
-            }
-            set {
-                this["user_id"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool use_proxy {
-            get {
-                return ((bool)(this["use_proxy"]));
-            }
-            set {
-                this["use_proxy"] = value;
-            }
-        }
     }
 }
