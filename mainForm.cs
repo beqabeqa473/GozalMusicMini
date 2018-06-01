@@ -67,7 +67,6 @@ namespace GozalMusicMini
             await AudioGetAlbumsAsync();
             await AudioGetAsync();
             initializeTreeview();
-            UpdateControls();
         }
 
         void OnSongFinished(object sender, System.Timers.ElapsedEventArgs e)
@@ -75,8 +74,16 @@ namespace GozalMusicMini
             if (audioFileReader.CurrentTime.TotalMilliseconds > 0 && waveOut.PlaybackState == PlaybackState.Stopped)
             {
                 listView1.Items[listView1.SelectedIndices[0] + 1].Selected = true;
-                PlaySound(AudioList[listView1.SelectedIndices[0]].Url.ToString());
-            }
+                if (treeView1.SelectedNode == treeView1.Nodes[1] || treeView1.SelectedNode.Parent == treeView1.Nodes[1])
+                {
+                    int index = MyAudios.FindIndex(x => x.id == (int)listView1.SelectedItems[0].Tag);
+                    PlaySound(MyAudios[index].Url.ToString());
+                }
+                else
+                {
+                    PlaySound(AudioList[listView1.SelectedIndices[0]].Url.ToString());
+                }
+                }
         }
 
         private void InitialiseDeviceCombo()
@@ -115,22 +122,6 @@ namespace GozalMusicMini
                 albumNode.ContextMenu = contextMenu1;
                 myAudiosNode.Nodes.Add(albumNode);
             }
-        }
-
-        private void UpdateControls()
-        {
-            if (treeView1.SelectedNode != treeView1.Nodes[1])
-            {
-                Add.Enabled = true;
-            }
-            else
-            {
-                Add.Enabled = false;
-            }
-                Edit.Enabled = treeView1.Nodes[1].IsSelected;
-                Delete.Enabled = treeView1.Nodes[1].IsSelected;
-            textBox1.Enabled = treeView1.Nodes[0].IsSelected;
-            button2.Enabled = treeView1.Nodes[2].IsSelected;
         }
 
             public async Task<string> MakeVKGetRequest(Dictionary<string, string> data)
@@ -211,6 +202,7 @@ namespace GozalMusicMini
             string response = await MakeVKGetRequest(values);
             if (response.Contains("response"))
             {
+                MyAudios.Insert(0, AudioList[listView1.SelectedIndices[0]]);
                 MessageBox.Show("Added audio to your audio library", "Success");
             }
             else
@@ -221,7 +213,8 @@ namespace GozalMusicMini
 
         private async Task AudioDeleteAsync(int aId, int oId)
         {
-            DialogResult dialogResult = MessageBox.Show("Do you want to delete " + AudioList[listView1.SelectedIndices[0]].Title + "from your library?", "Delete audio", MessageBoxButtons.YesNo);
+            int index = MyAudios.FindIndex(x => x.id == (int)listView1.SelectedItems[0].Tag);
+            DialogResult dialogResult = MessageBox.Show("Do you want to delete " + MyAudios[index].Title + "from your library?", "Delete audio", MessageBoxButtons.YesNo);
             if (dialogResult == DialogResult.Yes)
             {
                 var values = new Dictionary<string, string>
@@ -234,7 +227,7 @@ namespace GozalMusicMini
                 string response = await MakeVKGetRequest(values);
                 if (response.Contains("response"))
                 {
-                    AudioList.RemoveAt(listView1.SelectedIndices[0]);
+                    MyAudios.RemoveAt(index);
                     listView1.Items.RemoveAt(listView1.SelectedIndices[0]);
                     MessageBox.Show("Deleted audio from your audio library", "Success");
                 }
@@ -247,20 +240,21 @@ namespace GozalMusicMini
 
         private async void AudioEditAsync()
         {
+            int index = MyAudios.FindIndex(x => x.id == (int)listView1.SelectedItems[0].Tag);
             var values = new Dictionary<string, string>
 {
 {"method", "audiogetlyrics"},
-{"lyrics_id", AudioList[listView1.SelectedIndices[0]].Lyrics_id.ToString()},
+{"lyrics_id", MyAudios[index].Lyrics_id.ToString()},
 {"access_token", accessToken}
 };
             string response = await MakeVKGetRequest(values);
             EditAudio audioeditfrm = new EditAudio
             {
-                Ownerid = AudioList[listView1.SelectedIndices[0]].Owner_id,
-                Id = AudioList[listView1.SelectedIndices[0]].id,
-                Artist = AudioList[listView1.SelectedIndices[0]].Artist,
-                Title = AudioList[listView1.SelectedIndices[0]].Title,
-                Genre_id = AudioList[listView1.SelectedIndices[0]].Genre_id
+                Ownerid = MyAudios[index].Owner_id,
+                Id = MyAudios[index].id,
+                Artist = MyAudios[index].Artist,
+                Title = MyAudios[index].Title,
+                Genre_id = MyAudios[index].Genre_id
             };
             if (response.Contains("response"))
             {
@@ -312,8 +306,16 @@ namespace GozalMusicMini
         {
             try
             {
-                PlaySound(AudioList[listView1.SelectedIndices[0]].Url.ToString());
-            }
+                if (treeView1.SelectedNode == treeView1.Nodes[1] || treeView1.SelectedNode.Parent == treeView1.Nodes[1])
+                {
+                    int index = MyAudios.FindIndex(x => x.id == (int)listView1.SelectedItems[0].Tag);
+                    PlaySound(MyAudios[index].Url.ToString());
+                }
+                else
+                {
+                    PlaySound(AudioList[listView1.SelectedIndices[0]].Url.ToString());
+                }
+                }
             catch (Exception ex)
             {
                 MessageBox.Show("Cannot play track at this time" + ex.ToString(), "Error");
@@ -324,8 +326,17 @@ namespace GozalMusicMini
 
         private void DownloadSingle()
         {
-            string fName = AudioList[listView1.SelectedIndices[0]].Artist + " - " + AudioList[listView1.SelectedIndices[0]].Title;
-            var dialog = new SaveFileDialog()
+            string fName = "";
+            if (treeView1.SelectedNode == treeView1.Nodes[1] || treeView1.SelectedNode.Parent == treeView1.Nodes[1])
+            {
+                int index = MyAudios.FindIndex(x => x.id == (int)listView1.SelectedItems[0].Tag);
+                fName = AudioList[index].Artist + " - " + AudioList[index].Title;
+            }
+            else
+            {
+                fName = AudioList[listView1.SelectedIndices[0]].Artist + " - " + AudioList[listView1.SelectedIndices[0]].Title;
+            }
+                var dialog = new SaveFileDialog()
             {
                 Filter = "Audio (*.mp3)|*.mp3",
                 FileName = fName,
@@ -363,8 +374,16 @@ namespace GozalMusicMini
                     webClient.QueryString.Add("file", fName);
                     foreach (ListViewItem item in listView1.CheckedItems)
                     {
-                        fName = AudioList[item.Index].Artist + " - " + AudioList[item.Index].Title + ".mp3";
-                        await webClient.DownloadFileTaskAsync(AudioList[item.Index].Url, dialog.SelectedPath  + @"\" + fName);
+                        if (treeView1.SelectedNode == treeView1.Nodes[1] || treeView1.SelectedNode.Parent == treeView1.Nodes[1])
+                        {
+                            int index = MyAudios.FindIndex(x => x.id == (int)item.Tag);
+                            fName = AudioList[index].Artist + " - " + AudioList[index].Title + ".mp3";
+                        }
+                        else
+                        {
+                            fName = AudioList[item.Index].Artist + " - " + AudioList[item.Index].Title + ".mp3";
+                        }
+                            await webClient.DownloadFileTaskAsync(AudioList[item.Index].Url, dialog.SelectedPath  + @"\" + fName);
                     }
                 }
                 }
@@ -464,15 +483,16 @@ namespace GozalMusicMini
 Playfile();
 break;
                 case Keys.Shift | Keys.Enter:
-                    if (!treeView1.Nodes[1].IsSelected)
+                    if (treeView1.SelectedNode != treeView1.Nodes[1] || treeView1.SelectedNode.Parent != treeView1.Nodes[1])
                     {
                         await AudioAddAsync(AudioList[listView1.SelectedIndices[0]].id, AudioList[listView1.SelectedIndices[0]].Owner_id);
                     }
                         break;
                 case Keys.Delete:
-                    if (treeView1.Nodes[1].IsSelected)
+                    if (treeView1.SelectedNode == treeView1.Nodes[1] || treeView1.SelectedNode.Parent == treeView1.Nodes[1])
                     {
-                        await AudioDeleteAsync(AudioList[listView1.SelectedIndices[0]].id, AudioList[listView1.SelectedIndices[0]].Owner_id);
+                        int index = MyAudios.FindIndex(x => x.id == (int)listView1.SelectedItems[0].Tag);
+                        await AudioDeleteAsync(MyAudios[index].id, MyAudios[index].Owner_id);
                     }
                         break;
                 case Keys.Control | Keys.Shift | Keys.Alt | Keys.Return:
@@ -486,7 +506,7 @@ break;
                     }
                     break;
                 case Keys.F2:
-                    if (treeView1.Nodes[1].IsSelected)
+                    if (treeView1.SelectedNode == treeView1.Nodes[1] || treeView1.SelectedNode.Parent == treeView1.Nodes[1])
                     {
                         AudioEditAsync();
                     }
@@ -620,6 +640,7 @@ catch (ArgumentOutOfRangeException)
                 item.Text = audio.Artist.Trim();
                 item.SubItems.Add(audio.Title.Trim());
                 item.SubItems.Add(timespan.ToString(@"mm\:ss"));
+                item.Tag = audio.id;
                 listView1.Items.Add(item);
             }
 
@@ -711,7 +732,27 @@ catch (ArgumentOutOfRangeException)
 
         private void TreeView1_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            UpdateControls();
+            if (treeView1.SelectedNode != treeView1.Nodes[1])
+            {
+                Add.Enabled = true;
+            }
+            else
+            {
+                Add.Enabled = false;
+            }
+            if (treeView1.SelectedNode == treeView1.Nodes[1] || treeView1.SelectedNode.Parent == treeView1.Nodes[1])
+            {
+                Edit.Enabled = true;
+                Delete.Enabled = true;
+            }
+            else
+            {
+                Edit.Enabled = false;
+                Delete.Enabled = false;
+            }
+            textBox1.Enabled = treeView1.Nodes[0].IsSelected;
+            button2.Enabled = treeView1.Nodes[2].IsSelected;
+
             if (e.Node == treeView1.Nodes[1])
             {
                 FillMyAudios(-1);
