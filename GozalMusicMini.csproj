@@ -92,6 +92,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Album.cs" />
     <Compile Include="Audio.cs" />
     <Compile Include="AudioGenre.cs" />
     <Compile Include="AudioSort.cs" />

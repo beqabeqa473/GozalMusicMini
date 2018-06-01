@@ -25,19 +25,12 @@ namespace GozalMusicMini
         bool minimizedToTray;
 
         public List<Audio> AudioList;
+        public List<Audio> MyAudios;
+        public List<Album> Albums;
 
-                        public MainForm()
+        public MainForm()
         {
             InitializeComponent();
-            string[] treeNodes = new string[3];
-            treeNodes[0] = "Search";
-            treeNodes[1] = "My audios";
-            treeNodes[2] = "Popular";
-            foreach (string snode in treeNodes)
-            {
-                TreeNode node = new TreeNode(snode);
-                treeView1.Nodes.Add(node);
-            }
             InitialiseDeviceCombo();
             listView1.Columns.Add("Artist");
             listView1.Columns.Add("Title");
@@ -71,6 +64,10 @@ namespace GozalMusicMini
             string response = await MakeVKGetRequest(values);
             JToken userInfo = JToken.Parse(response);
             this.Text = this.Text + userInfo["response"][0]["first_name"].ToString() + " - " + userInfo["response"][0]["last_name"].ToString();
+            await AudioGetAlbumsAsync();
+            await AudioGetAsync();
+            initializeTreeview();
+            UpdateControls();
         }
 
         void OnSongFinished(object sender, System.Timers.ElapsedEventArgs e)
@@ -92,7 +89,51 @@ namespace GozalMusicMini
             comboBox1.SelectedIndex = 0;
         }
 
-        public async Task<string> MakeVKGetRequest(Dictionary<string, string> data)
+        private void initializeTreeview()
+        {
+            TreeNode searchNode = new TreeNode("Search");
+            treeView1.Nodes.Add(searchNode);
+            TreeNode myAudiosNode = new TreeNode("My audios");
+            myAudiosNode.ContextMenu = contextMenu1;
+            treeView1.Nodes.Add(myAudiosNode);
+            TreeNode popularNode = new TreeNode("Popular");
+            treeView1.Nodes.Add(popularNode);
+            if (Albums.Count == 0)
+            {
+                return;
+            }
+            else
+            {
+                TreeNode albumNode;
+                foreach (var album in Albums)
+                {
+                    albumNode = new TreeNode(album.Title);
+                    albumNode.ContextMenu = contextMenu1;
+                    myAudiosNode.Nodes.Add(albumNode);
+                }
+                albumNode = new TreeNode("Non album items");
+                albumNode.ContextMenu = contextMenu1;
+                myAudiosNode.Nodes.Add(albumNode);
+            }
+        }
+
+        private void UpdateControls()
+        {
+            if (treeView1.SelectedNode != treeView1.Nodes[1])
+            {
+                Add.Enabled = true;
+            }
+            else
+            {
+                Add.Enabled = false;
+            }
+                Edit.Enabled = treeView1.Nodes[1].IsSelected;
+                Delete.Enabled = treeView1.Nodes[1].IsSelected;
+            textBox1.Enabled = treeView1.Nodes[0].IsSelected;
+            button2.Enabled = treeView1.Nodes[2].IsSelected;
+        }
+
+            public async Task<string> MakeVKGetRequest(Dictionary<string, string> data)
         {
             string apiBaseUrl = "https://gozaltech.org/api/";
                 HttpClient client = new HttpClient();
@@ -126,12 +167,23 @@ namespace GozalMusicMini
 };
             string response = await MakeVKGetRequest(values);
             JToken token = JToken.Parse(response);
-            AudioList = token["response"]["items"].Children().Select(c => c.ToObject<Audio>()).ToList();
-            Display();
-            listView1.Focus();
+            MyAudios = token["response"]["items"].Children().Select(c => c.ToObject<Audio>()).ToList();
         }
 
-        private async Task GetpopularAsync()
+        private async Task AudioGetAlbumsAsync()
+        {
+            var values = new Dictionary<string, string>
+{
+{"method", "audiogetalbums"},
+{"owner_id", userID.ToString()},
+{"access_token", accessToken}
+};
+            string response = await MakeVKGetRequest(values);
+            JToken token = JToken.Parse(response);
+            Albums = token["response"]["items"].Children().Select(c => c.ToObject<Album>()).ToList();
+        }
+
+            private async Task GetpopularAsync()
         {
             button2.Enabled = false;
             var values = new Dictionary<string, string>
@@ -412,13 +464,13 @@ namespace GozalMusicMini
 Playfile();
 break;
                 case Keys.Shift | Keys.Enter:
-                    if (treeView1.SelectedNode.Text != "My audios")
+                    if (!treeView1.Nodes[1].IsSelected)
                     {
                         await AudioAddAsync(AudioList[listView1.SelectedIndices[0]].id, AudioList[listView1.SelectedIndices[0]].Owner_id);
                     }
                         break;
                 case Keys.Delete:
-                    if (treeView1.SelectedNode.Text == "My audios")
+                    if (treeView1.Nodes[1].IsSelected)
                     {
                         await AudioDeleteAsync(AudioList[listView1.SelectedIndices[0]].id, AudioList[listView1.SelectedIndices[0]].Owner_id);
                     }
@@ -434,7 +486,7 @@ break;
                     }
                     break;
                 case Keys.F2:
-                    if (treeView1.SelectedNode.Text == "My audios")
+                    if (treeView1.Nodes[1].IsSelected)
                     {
                         AudioEditAsync();
                     }
@@ -534,9 +586,52 @@ catch (ArgumentOutOfRangeException)
     }            
 }
 
-    private void Button1_Click(object sender, EventArgs e)
-    {
+        private void FillMyAudios(int albumID)
+        {
+            if (MyAudios.Count() == 0)
+                return;
+            IEnumerable<Audio> audios;
+            listView1.Items.Clear();
+            for (int i = MyAudios.Count - 1; i >= 0; i--)
+            {
+                if (MyAudios[i].Url == string.Empty)
+                {
+                    MyAudios.RemoveAt(i);
+                }
             }
+
+            if (albumID == -1)
+            {
+                audios = MyAudios;
+            }
+            else if (albumID == 0)
+            {
+                audios = MyAudios.Where(x => x.Album_id == 0);
+            }
+            else
+            {
+                audios = MyAudios.Where(x => x.Album_id == albumID);
+            }
+            foreach (var audio in audios)
+            {
+                int seconds = audio.Duration;
+                var timespan = TimeSpan.FromSeconds(seconds);
+                ListViewItem item = new ListViewItem();
+                item.Text = audio.Artist.Trim();
+                item.SubItems.Add(audio.Title.Trim());
+                item.SubItems.Add(timespan.ToString(@"mm\:ss"));
+                listView1.Items.Add(item);
+            }
+
+            listView1.AccessibleName = listView1.Items.Count + "Results found";
+            try
+            {
+                listView1.Items[0].Selected = true;
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+            }
+        }
 
         private async void Button2_ClickAsync(object sender, EventArgs e)
         {
@@ -614,24 +709,22 @@ catch (ArgumentOutOfRangeException)
             }
             }
 
-        private async void treeView1_AfterSelectAsync(object sender, TreeViewEventArgs e)
+        private void TreeView1_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            if (e.Node.Text == "Search")
+            UpdateControls();
+            if (e.Node == treeView1.Nodes[1])
             {
-                textBox1.Enabled = true;
-                button2.Enabled = false;
+                FillMyAudios(-1);
             }
-            else if (e.Node.Text == "My audios") {
-                textBox1.Enabled = false;
-                button2.Enabled = false;
-                await AudioGetAsync();
-            }
-            else if (e.Node.Text == "Popular")
+            else if (e.Node.Parent != null && e.Node.Text == "Non album items")
             {
-                textBox1.Enabled = false;
-                button2.Enabled = true;
+                FillMyAudios(0);
             }
+            else if (e.Node.Parent != null && e.Node.Text == Albums[e.Node.Index].Title)
+            {
+                FillMyAudios(Albums[treeView1.SelectedNode.Index].id);
             }
+        }
 
         private async void Add_ClickAsync(object sender, EventArgs e)
         {
@@ -648,26 +741,5 @@ catch (ArgumentOutOfRangeException)
             await AudioDeleteAsync(AudioList[listView1.SelectedIndices[0]].id, AudioList[listView1.SelectedIndices[0]].Owner_id);
         }
 
-        private void listView1_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (treeView1.SelectedNode.Text != "My audios")
-            {
-                Add.Enabled = true;
-            }
-            else
-            {
-                Add.Enabled = false;
-            }
-            if (treeView1.SelectedNode.Text == "My audios")
-            {
-                Edit.Enabled = true;
-                Delete.Enabled = true;
-            }
-            else
-            {
-                Edit.Enabled = false;
-                Delete.Enabled = false;
-            }
-        }
     }
 }
