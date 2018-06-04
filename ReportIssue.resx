@@ -117,29 +117,4 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="textBox1.AccessibleName" xml:space="preserve">
-    <value>Поиск</value>
-  </data>
-  <assembly alias="System.Drawing" name="System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
-  <data name="textBox1.Location" type="System.Drawing.Point, System.Drawing">
-    <value>12, 4</value>
-  </data>
-  <data name="listBox1.AccessibleName" xml:space="preserve">
-    <value>Результаты поиска</value>
-  </data>
-  <data name="listBox1.Location" type="System.Drawing.Point, System.Drawing">
-    <value>13, 106</value>
-  </data>
-  <data name="trackBar1.AccessibleName" xml:space="preserve">
-    <value>Громкость</value>
-  </data>
-  <data name="trackBar2.AccessibleName" xml:space="preserve">
-    <value>Перемотка</value>
-  </data>
-  <data name="showownaudios.Text" xml:space="preserve">
-    <value>Показать свои аудио записи</value>
-  </data>
-  <data name="comboBox1.AccessibleName" xml:space="preserve">
-    <value>Выбор выходного аудио устройства</value>
-  </data>
 </root>

@@ -31,6 +31,10 @@
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.treeView1 = new System.Windows.Forms.TreeView();
+            this.treeContextMenu = new System.Windows.Forms.ContextMenu();
+            this.AddAlbum = new System.Windows.Forms.MenuItem();
+            this.EditAlbum = new System.Windows.Forms.MenuItem();
+            this.DeleteAlbum = new System.Windows.Forms.MenuItem();
             this.listView1 = new System.Windows.Forms.ListView();
             this.contextMenu1 = new System.Windows.Forms.ContextMenu();
             this.Play = new System.Windows.Forms.MenuItem();
@@ -48,7 +52,7 @@
             this.exitMenuItem = new System.Windows.Forms.MenuItem();
             this.Help = new System.Windows.Forms.MenuItem();
             this.Documentation = new System.Windows.Forms.MenuItem();
-            this.Changelog = new System.Windows.Forms.MenuItem();
+            this.ReportIssue = new System.Windows.Forms.MenuItem();
             this.About = new System.Windows.Forms.MenuItem();
             this.timer1 = new System.Windows.Forms.Timer(this.components);
             this.trayIcon = new System.Windows.Forms.NotifyIcon(this.components);
@@ -63,6 +67,32 @@
             resources.ApplyResources(this.treeView1, "treeView1");
             this.treeView1.Name = "treeView1";
             this.treeView1.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.TreeView1_AfterSelect);
+            this.treeView1.KeyDown += new System.Windows.Forms.KeyEventHandler(this.TreeView1_KeyDown);
+            // 
+            // treeContextMenu
+            // 
+            this.treeContextMenu.MenuItems.AddRange(new System.Windows.Forms.MenuItem[] {
+            this.AddAlbum,
+            this.EditAlbum,
+            this.DeleteAlbum});
+            // 
+            // AddAlbum
+            // 
+            this.AddAlbum.Index = 0;
+            resources.ApplyResources(this.AddAlbum, "AddAlbum");
+            this.AddAlbum.Click += new System.EventHandler(this.AddAlbum_Click);
+            // 
+            // EditAlbum
+            // 
+            this.EditAlbum.Index = 1;
+            resources.ApplyResources(this.EditAlbum, "EditAlbum");
+            this.EditAlbum.Click += new System.EventHandler(this.EditAlbum_Click);
+            // 
+            // DeleteAlbum
+            // 
+            this.DeleteAlbum.Index = 2;
+            resources.ApplyResources(this.DeleteAlbum, "DeleteAlbum");
+            this.DeleteAlbum.Click += new System.EventHandler(this.DeleteAlbum_Click);
             // 
             // listView1
             // 
@@ -75,6 +105,7 @@
             this.listView1.Name = "listView1";
             this.listView1.UseCompatibleStateImageBehavior = false;
             this.listView1.View = System.Windows.Forms.View.Details;
+            this.listView1.SelectedIndexChanged += new System.EventHandler(this.ListView1_SelectedIndexChanged);
             this.listView1.KeyDown += new System.Windows.Forms.KeyEventHandler(this.ListView1_KeyDownAsync);
             this.listView1.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.ListView1_MouseDoubleClick);
             // 
@@ -176,7 +207,7 @@
             this.Help.Index = 1;
             this.Help.MenuItems.AddRange(new System.Windows.Forms.MenuItem[] {
             this.Documentation,
-            this.Changelog,
+            this.ReportIssue,
             this.About});
             resources.ApplyResources(this.Help, "Help");
             // 
@@ -185,10 +216,11 @@
             this.Documentation.Index = 0;
             resources.ApplyResources(this.Documentation, "Documentation");
             // 
-            // Changelog
+            // ReportIssue
             // 
-            this.Changelog.Index = 1;
-            resources.ApplyResources(this.Changelog, "Changelog");
+            this.ReportIssue.Index = 1;
+            resources.ApplyResources(this.ReportIssue, "ReportIssue");
+            this.ReportIssue.Click += new System.EventHandler(this.ReportIssue_Click);
             // 
             // About
             // 
@@ -205,7 +237,7 @@
             // 
             this.trayIcon.ContextMenu = this.trayIconContextMenu;
             resources.ApplyResources(this.trayIcon, "trayIcon");
-            this.trayIcon.MouseClick += new System.Windows.Forms.MouseEventHandler(this.trayIcon_MouseClick);
+            this.trayIcon.MouseClick += new System.Windows.Forms.MouseEventHandler(this.TrayIcon_MouseClick);
             // 
             // trayIconContextMenu
             // 
@@ -247,6 +279,10 @@
 		#endregion
 
         private System.Windows.Forms.TreeView treeView1;
+        private System.Windows.Forms.ContextMenu treeContextMenu;
+        private System.Windows.Forms.MenuItem AddAlbum;
+        private System.Windows.Forms.MenuItem EditAlbum;
+        private System.Windows.Forms.MenuItem DeleteAlbum;
         private System.Windows.Forms.ListView listView1;
         private System.Windows.Forms.TrackBar trackBar1;
         private System.Windows.Forms.TrackBar trackBar2;
@@ -263,7 +299,7 @@
         private System.Windows.Forms.MenuItem File;
         private System.Windows.Forms.MenuItem Help;
         private System.Windows.Forms.MenuItem Documentation;
-        private System.Windows.Forms.MenuItem Changelog;
+        private System.Windows.Forms.MenuItem ReportIssue;
         private System.Windows.Forms.MenuItem About;
         private System.Windows.Forms.Timer timer1;
         private System.Windows.Forms.MenuItem exitMenuItem;

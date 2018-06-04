@@ -1,5 +1,8 @@
-﻿namespace GozalMusicMini
+﻿using System;
+
+namespace GozalMusicMini
 {
+[Serializable]
     public class Album
     {
         public int id { get; set; }

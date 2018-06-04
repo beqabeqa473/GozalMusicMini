@@ -13,5 +13,6 @@
         public int Album_id { get; set; }
         public AudioGenre Genre_id { get; set; }
         public bool Is_hq { get; set; }
+        public bool Deleted { get; set; }
     }
 }
