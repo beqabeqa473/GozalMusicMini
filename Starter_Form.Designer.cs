@@ -45,7 +45,7 @@
             this.ClientSize = new System.Drawing.Size(772, 450);
             this.Controls.Add(this.progressBar1);
             this.Name = "Starter_Form";
-            this.Text = "Initializing, please wait";
+            this.Text = "Инициализация, пожалуйста подождите";
             this.Load += new System.EventHandler(this.Starter_Form_LoadAsync);
             this.ResumeLayout(false);
 

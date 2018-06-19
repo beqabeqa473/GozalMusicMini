@@ -16,12 +16,12 @@ namespace GozalMusicMini
     public partial class MainForm : Form
     {
         private AudioFileReader audioFileReader = null;
-        private DirectSoundOut waveOut = null;
-        private Guid PlaybackDeviceID;
+        private WaveOutEvent waveOut = null;
         private System.Timers.Timer switchTimer;
 
         public string accessToken;
         private int userID;
+        private bool proxy;
         private int index;
         private IniFile settings;
         private bool minimizedToTray;
@@ -36,11 +36,15 @@ namespace GozalMusicMini
         {
             InitializeComponent();
             InitialiseDeviceCombo();
-            listView1.Columns.Add("Artist");
-            listView1.Columns.Add("Title");
-            listView1.Columns.Add("Duration");
+            lvAudios.Columns.Add("Исполнитель");
+            lvAudios.Columns.Add("Название");
+            lvAudios.Columns.Add("Длительность");
             settings = new IniFile();
-        }
+            if (!settings.KeyExists("Proxy"))
+            {
+                settings.Write("Proxy", "false");
+            }
+            }
 
         protected override void WndProc(ref Message m)
         {
@@ -60,6 +64,7 @@ namespace GozalMusicMini
             switchTimer.Elapsed += OnSongFinished;
             accessToken = settings.Read("Token");
             userID = Int32.Parse(settings.Read("UserID"));
+            proxy = bool.Parse(settings.Read("Proxy"));
             var values = new Dictionary<string, string>
 {
 {"method", "flname"},
@@ -69,6 +74,7 @@ namespace GozalMusicMini
             JToken userInfo = JToken.Parse(response);
             FullName = userInfo["response"][0]["first_name"].ToString() + " " + userInfo["response"][0]["last_name"].ToString();
             this.Text = this.Text + " - " + FullName;
+            mbFileProxy.Checked = proxy;
             await AudioGetAlbumsAsync();
             await AudioGetAsync();
             InitializeTreeview();
@@ -78,41 +84,40 @@ namespace GozalMusicMini
         {
             if (audioFileReader.CurrentTime.TotalMilliseconds > 0 && waveOut.PlaybackState == PlaybackState.Stopped)
             {
-                listView1.Items[listView1.SelectedIndices[0] + 1].Selected = true;
-                if (treeView1.SelectedNode == treeView1.Nodes[1] || treeView1.SelectedNode.Parent == treeView1.Nodes[1])
+                lvAudios.Items[lvAudios.SelectedIndices[0] + 1].Selected = true;
+                if (tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1])
                 {
-                    index = MyAudios.FindIndex(x => x.id == (int)listView1.SelectedItems[0].Tag);
+                    index = MyAudios.FindIndex(x => x.id == (int)lvAudios.SelectedItems[0].Tag);
                     PlaySound(MyAudios[index].Url.ToString());
                 }
                 else
                 {
-                    PlaySound(AudioList[listView1.SelectedIndices[0]].Url.ToString());
+                    PlaySound(AudioList[lvAudios.SelectedIndices[0]].Url.ToString());
                 }
                 }
         }
 
-
         private void InitialiseDeviceCombo()
         {
-            comboBox1.DisplayMember = "Description";
-            foreach (var device in DirectSoundOut.Devices)
+            for (int deviceId = 0; deviceId < WaveOut.DeviceCount; deviceId++)
             {
-                comboBox1.Items.Add(device);
+                var capabilities = WaveOut.GetCapabilities(deviceId);
+                cbDevices.Items.Add(String.Format("Device {0} ({1})", deviceId, capabilities.ProductName));
             }
-            comboBox1.SelectedIndex = 0;
         }
 
         private void InitializeTreeview()
         {
-            TreeNode searchNode = new TreeNode("Search");
-            treeView1.Nodes.Add(searchNode);
-            TreeNode myAudiosNode = new TreeNode("My audios")
+            TreeNode searchNode = new TreeNode("Поиск");
+            tvSections.Nodes.Add(searchNode);
+            TreeNode myAudiosNode = new TreeNode("Мое аудио")
             {
-                ContextMenu = treeContextMenu
+                ContextMenuStrip = cmSections
             };
-            treeView1.Nodes.Add(myAudiosNode);
-            TreeNode popularNode = new TreeNode("Popular");
-            treeView1.Nodes.Add(popularNode);
+            tvSections.Nodes.Add(myAudiosNode);
+            TreeNode popularNode = new TreeNode("Популярное");
+            tvSections.Nodes.Add(popularNode);
+            tvSections.SelectedNode = searchNode;
             if (Albums.Count == 0)
             {
                 return;
@@ -124,22 +129,30 @@ namespace GozalMusicMini
                 {
                     albumNode = new TreeNode(album.Title)
                     {
-                        ContextMenu = treeContextMenu,
+                        ContextMenuStrip = cmSections,
                         Tag = album.id
                     };
                     myAudiosNode.Nodes.Add(albumNode);
                 }
                 albumNode = new TreeNode("Non album items")
                 {
-                    ContextMenu = treeContextMenu
+                    ContextMenuStrip = cmSections
                 };
                 myAudiosNode.Nodes.Add(albumNode);
             }
         }
 
-            public async Task<string> MakeVKGetRequest(Dictionary<string, string> data)
+        public async Task<string> MakeVKGetRequest(Dictionary<string, string> data)
         {
-            string apiBaseUrl = "https://gozaltech.org/api/";
+            string apiBaseUrl = "";
+            if (proxy)
+            {
+                apiBaseUrl = "https://gozaltech.org/api_proxy/";
+            }
+            else
+            {
+                apiBaseUrl = "https://gozaltech.org/api/";
+            }
                 HttpClient client = new HttpClient();
             var postData = new FormUrlEncodedContent(data);
                 HttpResponseMessage responseMessage = await client.PostAsync(apiBaseUrl, postData);
@@ -159,7 +172,7 @@ namespace GozalMusicMini
             JToken token = JToken.Parse(response);
             AudioList = token["response"]["items"].Children().Select(c => c.ToObject<Audio>()).ToList();
             Display();
-            listView1.Focus();
+            lvAudios.Focus();
         }
 
         private async Task AudioGetAsync()
@@ -192,10 +205,10 @@ namespace GozalMusicMini
                 Albums.Insert(0, albumItem);
                 TreeNode albumNode = new TreeNode(Albums[0].Title)
                 {
-                    ContextMenu = treeContextMenu,
+                    ContextMenuStrip = cmSections,
                     Tag = Albums[0].id
                 };
-                treeView1.Nodes[1].Nodes.Insert(0, albumNode);
+                tvSections.Nodes[1].Nodes.Insert(0, albumNode);
             }
         }
 
@@ -255,7 +268,7 @@ namespace GozalMusicMini
 
             private async Task GetpopularAsync()
         {
-            button2.Enabled = false;
+            btnPopular.Enabled = false;
             var values = new Dictionary<string, string>
 {
 {"method", "audiopopular"},
@@ -265,8 +278,8 @@ namespace GozalMusicMini
             JToken token = JToken.Parse(response);
             AudioList = token["response"].Children().Select(c => c.ToObject<Audio>()).ToList();
             Display();
-            listView1.Focus();
-            button2.Enabled = true;
+            lvAudios.Focus();
+            btnPopular.Enabled = true;
         }
 
         private async Task<bool> AudioAddAsync(int aId, int oId)
@@ -331,7 +344,7 @@ namespace GozalMusicMini
 
         private async void AudioEditAsync()
         {
-            index = MyAudios.FindIndex(x => x.id == (int)listView1.SelectedItems[0].Tag);
+            index = MyAudios.FindIndex(x => x.id == (int)lvAudios.SelectedItems[0].Tag);
             var values = new Dictionary<string, string>
 {
 {"method", "audiogetlyrics"},
@@ -362,14 +375,12 @@ namespace GozalMusicMini
             public void PlaySound(string filename)
         {
             CloseWaveOut();
-            var devicesList = comboBox1.Items.Cast<DirectSoundDeviceInfo>().ToList();
-            comboBox1.SelectedIndex = devicesList.FindIndex(device => device.Guid == ((DirectSoundDeviceInfo)comboBox1.SelectedItem).Guid);
-            PlaybackDeviceID = ((DirectSoundDeviceInfo)comboBox1.SelectedItem).Guid;
-            waveOut = new DirectSoundOut(PlaybackDeviceID);
+            waveOut = new WaveOutEvent();
+            waveOut.DeviceNumber = cbDevices.SelectedIndex;
             //waveOut.PlaybackStopped += AudioOutput_PlaybackStopped; this is naudio playback stopped event
             audioFileReader = new AudioFileReader(filename)
             {
-                Volume = trackBar1.Value / 100.0f
+                Volume = tbVolume.Value / 100.0f
             };
             waveOut.Init(audioFileReader);
             switchTimer.Start();
@@ -378,8 +389,8 @@ namespace GozalMusicMini
 
         //void AudioOutput_PlaybackStopped(object sender, StoppedEventArgs e)
         //{
-                //listView1.SetSelected(listView1.SelectedIndex + 1, true);
-                //PlaySound(AudioList[listView1.SelectedIndex].Url.ToString());
+                //lvAudios.SetSelected(lvAudios.SelectedIndex + 1, true);
+                //PlaySound(AudioList[lvAudios.SelectedIndex].Url.ToString());
             //}        
 
         private void CloseWaveOut()
@@ -397,35 +408,38 @@ namespace GozalMusicMini
         {
             try
             {
-                if (treeView1.SelectedNode == treeView1.Nodes[1] || treeView1.SelectedNode.Parent == treeView1.Nodes[1])
+                if (tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1])
                 {
-                    index = MyAudios.FindIndex(x => x.id == (int)listView1.SelectedItems[0].Tag);
+                    index = MyAudios.FindIndex(x => x.id == (int)lvAudios.SelectedItems[0].Tag);
                     PlaySound(MyAudios[index].Url.ToString());
                 }
                 else
                 {
-                    PlaySound(AudioList[listView1.SelectedIndices[0]].Url.ToString());
+                    PlaySound(AudioList[lvAudios.SelectedIndices[0]].Url.ToString());
                 }
                 }
             catch (Exception ex)
             {
-                MessageBox.Show("Cannot play track at this time" + ex.ToString(), "Error");
+                MessageBox.Show("Не удалось возпроизвести трек" + ex.ToString(), "Ошибка");
             }
         }
 
-        private void ListView1_MouseDoubleClick(object sender, MouseEventArgs e) => Playfile();
+        private void LvAudios_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            Playfile();
+        }
 
         private void DownloadSingle()
         {
             string fName = "";
-            if (treeView1.SelectedNode == treeView1.Nodes[1] || treeView1.SelectedNode.Parent == treeView1.Nodes[1])
+            if (tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1])
             {
-                index = MyAudios.FindIndex(x => x.id == (int)listView1.SelectedItems[0].Tag);
-                fName = AudioList[index].Artist + " - " + AudioList[index].Title;
+                index = MyAudios.FindIndex(x => x.id == (int)lvAudios.SelectedItems[0].Tag);
+                fName = MyAudios[index].Artist + " - " + MyAudios[index].Title;
             }
             else
             {
-                fName = AudioList[listView1.SelectedIndices[0]].Artist + " - " + AudioList[listView1.SelectedIndices[0]].Title;
+                fName = AudioList[lvAudios.SelectedIndices[0]].Artist + " - " + AudioList[lvAudios.SelectedIndices[0]].Title;
             }
                 var dialog = new SaveFileDialog()
             {
@@ -442,7 +456,7 @@ namespace GozalMusicMini
                     webClient.DownloadFileCompleted += new AsyncCompletedEventHandler(Completed);
                     webClient.DownloadProgressChanged += new DownloadProgressChangedEventHandler(ProgressChanged);
                     webClient.QueryString.Add("file", fName);
-                    webClient.DownloadFileAsync(new Uri(@AudioList[listView1.SelectedIndices[0]].Url.ToString()), dialog.FileName);
+                    webClient.DownloadFileAsync(new Uri(@AudioList[lvAudios.SelectedIndices[0]].Url.ToString()), dialog.FileName);
                 }
                 }
                 }
@@ -452,7 +466,7 @@ namespace GozalMusicMini
             string fName = "";
             var dialog = new FolderBrowserDialog()
             {
-                Description = "Select a directory to save selected tracks",
+                Description = "Выберите директорию для сохранения треков",
                 ShowNewFolderButton = true
             };
             var result = dialog.ShowDialog();
@@ -463,9 +477,9 @@ namespace GozalMusicMini
                     webClient.DownloadFileCompleted += new AsyncCompletedEventHandler(Completed);
                     webClient.DownloadProgressChanged += new DownloadProgressChangedEventHandler(ProgressChanged);
                     webClient.QueryString.Add("file", fName);
-                    foreach (ListViewItem item in listView1.CheckedItems)
+                    foreach (ListViewItem item in lvAudios.CheckedItems)
                     {
-                        if (treeView1.SelectedNode == treeView1.Nodes[1] || treeView1.SelectedNode.Parent == treeView1.Nodes[1])
+                        if (tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1])
                         {
                             index = MyAudios.FindIndex(x => x.id == (int)item.Tag);
                             fName = AudioList[index].Artist + " - " + AudioList[index].Title + ".mp3";
@@ -480,25 +494,28 @@ namespace GozalMusicMini
                 }
             }
 
-        private void ProgressChanged(object sender, DownloadProgressChangedEventArgs e) => progressBar1.Value = e.ProgressPercentage;
+        private void ProgressChanged(object sender, DownloadProgressChangedEventArgs e)
+        {
+            pbDownload.Value = e.ProgressPercentage;
+        }
 
         private void Completed(object sender, AsyncCompletedEventArgs e)
         {
             string fName = ((WebClient)(sender)).QueryString["file"];
-            trayIcon.Visible = true;
-            trayIcon.ShowBalloonTip(5000, "Success", $"File {fName} has been successfully downloaded", ToolTipIcon.Info);
-            trayIcon.Visible = false;
+            niTray.Visible = true;
+            niTray.ShowBalloonTip(5000, "Успешно", $"Файл {fName} Успешно скачан", ToolTipIcon.Info);
+            niTray.Visible = false;
         }
 
-        private async void TextBox1_KeyDown_1Async(object sender, KeyEventArgs e)
+        private async void TxtSearch_KeyDown_1Async(object sender, KeyEventArgs e)
 		{
-            if (textBox1.Text != null && !string.IsNullOrWhiteSpace(textBox1.Text))
+            if (txtSearch.Text != null && !string.IsNullOrWhiteSpace(txtSearch.Text))
             {
                 switch (e.KeyData)
                 {
                     case Keys.Enter:
-                        textBox1.SelectAll();
-                        await AudioSearchAsync(textBox1.Text);
+                        txtSearch.SelectAll();
+                        await AudioSearchAsync(txtSearch.Text);
                         break;
                 }
             }
@@ -511,7 +528,7 @@ namespace GozalMusicMini
                 case Keys.Control | Keys.Down:
                     try
                     {
-                        trackBar1.Value -= 1;
+                        tbVolume.Value -= 1;
                         return true;
                     }
                     catch (Exception ex) when (ex is NullReferenceException || ex is ArgumentOutOfRangeException)
@@ -521,7 +538,7 @@ namespace GozalMusicMini
                 case Keys.Control | Keys.Up:
                     try
                     {
-                        trackBar1.Value += 1;
+                        tbVolume.Value += 1;
                         return true;
                     }
                     catch (Exception ex) when (ex is NullReferenceException || ex is ArgumentOutOfRangeException)
@@ -529,7 +546,7 @@ namespace GozalMusicMini
                         return true;
                     }
                 case Keys.Control | Keys.Right:
-                    if (textBox1.Focused)
+                    if (txtSearch.Focused)
                     {
                         break;
                     }
@@ -546,7 +563,7 @@ namespace GozalMusicMini
                         }
                     }
                 case Keys.Control | Keys.Left:
-                    if (textBox1.Focused)
+                    if (txtSearch.Focused)
                     {
                         break;
                     }
@@ -566,37 +583,32 @@ namespace GozalMusicMini
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
-        private async void ListView1_KeyDownAsync(object sender, KeyEventArgs e)
+        private void LvAudios_KeyDown(object sender, KeyEventArgs e)
         {
             switch (e.KeyData)
             {
-    case Keys.Enter:
-Playfile();
-break;
+                case Keys.Enter:
+                    Playfile();
+                    break;
                 case Keys.Shift | Keys.Enter:
-                    if (treeView1.SelectedNode != treeView1.Nodes[1] || treeView1.SelectedNode.Parent != treeView1.Nodes[1])
+                    if (lvAudios.SelectedItems.Count == 0)
+                        return;
+                    if (tvSections.SelectedNode != tvSections.Nodes[1] && tvSections.SelectedNode.Parent != tvSections.Nodes[1])
                     {
-                        Add.PerformClick();
-                    }
-                        break;
-                case Keys.Delete:
-                    if (treeView1.SelectedNode == treeView1.Nodes[1] || treeView1.SelectedNode.Parent == treeView1.Nodes[1])
-                    {
-                        Delete.PerformClick();
-                    }
-                        break;
-                case Keys.Control | Keys.Shift | Keys.Alt | Keys.Return:
-                    if (listView1.CheckedItems.Count > 1)
-                    {
-                        await DownloadMultipleAsync();
-                    }
-                    else
-                    {
-                        DownloadSingle();
+                        cmAudiosAdd.PerformClick();
                     }
                     break;
+                case Keys.Delete:
+                    if (tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1])
+                    {
+                        cmAudiosDelete.PerformClick();
+                    }
+                    break;
+                case Keys.Control | Keys.Shift | Keys.Alt | Keys.Return:
+                    cmAudiosDownload.PerformClick();
+                    break;
                 case Keys.F2:
-                    if (treeView1.SelectedNode == treeView1.Nodes[1] || treeView1.SelectedNode.Parent == treeView1.Nodes[1])
+                    if (tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1])
                     {
                         AudioEditAsync();
                     }
@@ -616,37 +628,35 @@ break;
                     }
                     e.Handled = e.SuppressKeyPress = true;
                     break;
-}
+            }
         }
 
-    private void TrackBar1_Scroll_1(object sender, EventArgs e)
+        private void TbVolume_Scroll(object sender, EventArgs e)
     {
         try
         {
-            audioFileReader.Volume = trackBar1.Value / 100.0f;
+            audioFileReader.Volume = tbVolume.Value / 100.0f;
         }
         catch (Exception)
             {
         }
     }
  
-    private void TrackBar2_Scroll(object sender, EventArgs e)
+    private void TbSeek_Scroll(object sender, EventArgs e)
     {
             if (waveOut != null)
             {
-                audioFileReader.CurrentTime = TimeSpan.FromSeconds(audioFileReader.TotalTime.TotalSeconds * trackBar2.Value / 100.0);
+                audioFileReader.CurrentTime = TimeSpan.FromSeconds(audioFileReader.TotalTime.TotalSeconds * tbSeek.Value / 100.0);
             }
         }
 
-        private void ComboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        private void CbDevices_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (waveOut != null)
             {
                 waveOut.Dispose();
-                var devicesList = comboBox1.Items.Cast<DirectSoundDeviceInfo>().ToList();
-                comboBox1.SelectedIndex = devicesList.FindIndex(device => device.Guid == ((DirectSoundDeviceInfo)comboBox1.SelectedItem).Guid);
-                PlaybackDeviceID = ((DirectSoundDeviceInfo)comboBox1.SelectedItem).Guid;
-                waveOut = new DirectSoundOut(PlaybackDeviceID);
+                waveOut = new WaveOutEvent();
+                waveOut.DeviceNumber = cbDevices.SelectedIndex;
                 //waveOut.PlaybackStopped += AudioOutput_PlaybackStopped;
                 waveOut.Init(audioFileReader);
                 waveOut.Play();
@@ -664,9 +674,9 @@ break;
     {
             if (AudioList.Count() == 0)
             {
-                MessageBox.Show("Nothing found", "no results!");
+                MessageBox.Show("Ничего не найдено", "Нет результатов");
             }
-    listView1.Items.Clear();
+    lvAudios.Items.Clear();
             for (int i = AudioList.Count -1; i >= 0; i--)
             {
                 if (AudioList[i].Url == string.Empty)
@@ -683,13 +693,13 @@ break;
                 item.Text = AudioList[i].Artist.Trim();
                 item.SubItems.Add(AudioList[i].Title.Trim());
                 item.SubItems.Add(timespan.ToString(@"mm\:ss"));
-                listView1.Items.Add(item);
+                lvAudios.Items.Add(item);
         }
         
-        listView1.AccessibleName = listView1.Items.Count + "Results found";
+        lvAudios.AccessibleName = lvAudios.Items.Count + "Results found";
         try
         {
-                listView1.Items[0].Selected = true;
+                lvAudios.Items[0].Selected = true;
         }
 catch (ArgumentOutOfRangeException)
         {            
@@ -701,7 +711,7 @@ catch (ArgumentOutOfRangeException)
             if (MyAudios.Count() == 0)
                 return;
             IEnumerable<Audio> audios;
-            listView1.Items.Clear();
+            lvAudios.Items.Clear();
             for (int i = MyAudios.Count - 1; i >= 0; i--)
             {
                 if (MyAudios[i].Url == string.Empty)
@@ -731,31 +741,35 @@ catch (ArgumentOutOfRangeException)
                 item.SubItems.Add(audio.Title.Trim());
                 item.SubItems.Add(timespan.ToString(@"mm\:ss"));
                 item.Tag = audio.id;
-                listView1.Items.Add(item);
+                lvAudios.Items.Add(item);
             }
 
-            listView1.AccessibleName = listView1.Items.Count + "Results found";
+            lvAudios.AccessibleName = lvAudios.Items.Count + "Results found";
             try
             {
-                listView1.Items[0].Selected = true;
+                lvAudios.Items[0].Selected = true;
             }
             catch (ArgumentOutOfRangeException)
             {
             }
         }
 
-        private async void Button2_ClickAsync(object sender, EventArgs e)
+        private async void BtnPopular_ClickAsync(object sender, EventArgs e)
         {
             await GetpopularAsync();
         }
 
-        private void Play_Click(object sender, EventArgs e) => Playfile();
+        private void Play_Click(object sender, EventArgs e)
+        {
+            Playfile();
+        }   
 
-        private void TrackBar1_ValueChanged(object sender, EventArgs e)
+
+        private void TbVolume_ValueChanged(object sender, EventArgs e)
         {
             try
             {
-                audioFileReader.Volume = trackBar1.Value / 100.0f;
+                audioFileReader.Volume = tbVolume.Value / 100.0f;
             }
             catch (Exception)
             {
@@ -767,15 +781,15 @@ catch (ArgumentOutOfRangeException)
                 if (waveOut != null && audioFileReader != null)
                 {
                 TimeSpan currentTime = (waveOut.PlaybackState == PlaybackState.Stopped) ? TimeSpan.Zero : audioFileReader.CurrentTime;
-                trackBar2.Value = Math.Min(trackBar2.Maximum, (int)(100 * currentTime.TotalSeconds / audioFileReader.TotalTime.TotalSeconds));
+                tbSeek.Value = Math.Min(tbSeek.Maximum, (int)(100 * currentTime.TotalSeconds / audioFileReader.TotalTime.TotalSeconds));
             }
             else
             {
-                trackBar2.Value = 0;
+                tbSeek.Value = 0;
             }
         }
 
-            private void ExitMenuItem_Click(object sender, EventArgs e)
+            private void MbFileExit_Click(object sender, EventArgs e)
         {
             Application.Exit();
         }
@@ -784,13 +798,13 @@ catch (ArgumentOutOfRangeException)
         {
             if (e.KeyData == Keys.Escape)
             {
-                DialogResult dialogResult = MessageBox.Show("Do you want to hide window to system tray?", "Hide window", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                DialogResult dialogResult = MessageBox.Show("Желаете свернуть программу в системный трей?", "Свернуть окно", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (dialogResult == DialogResult.Yes)
                 {
                     this.WindowState = FormWindowState.Minimized;
                     this.ShowInTaskbar = false;
                     this.Hide();
-                    this.trayIcon.Visible = true;
+                    this.niTray.Visible = true;
                     minimizedToTray = true;
                 }
             }
@@ -803,7 +817,7 @@ catch (ArgumentOutOfRangeException)
                 this.ShowInTaskbar = true;
                 this.Show();
                 this.Activate();
-                this.trayIcon.Visible = false;
+                this.niTray.Visible = false;
                 minimizedToTray = false;
             }
             else
@@ -820,40 +834,40 @@ catch (ArgumentOutOfRangeException)
             }
             }
 
-        private void TreeView1_AfterSelect(object sender, TreeViewEventArgs e)
+        private void TvSections_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            if (treeView1.SelectedNode != treeView1.Nodes[1])
+            if (!tvSections.Nodes[1].IsSelected)
             {
-                Add.Enabled = true;
+                cmAudiosAdd.Visible = true;
             }
             else
             {
-                Add.Enabled = false;
+                cmAudiosAdd.Visible = false;
             }
-            if (treeView1.SelectedNode == treeView1.Nodes[1] || treeView1.SelectedNode.Parent == treeView1.Nodes[1])
+            if (tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1])
             {
-                Edit.Enabled = true;
-                Delete.Enabled = true;
+                cmAudiosEdit.Visible = true;
+                cmAudiosDelete.Visible = true;
             }
             else
             {
-                Edit.Enabled = false;
-                Delete.Enabled = false;
+                cmAudiosEdit.Visible = false;
+                cmAudiosDelete.Visible = false;
             }
-            if (treeView1.SelectedNode.Parent == treeView1.Nodes[1] && treeView1.SelectedNode.Text != "Non album items")
+            if (tvSections.SelectedNode.Parent == tvSections.Nodes[1] && tvSections.SelectedNode.Text != "Non album items")
             {
-                DeleteAlbum.Enabled = true;
-                EditAlbum.Enabled = true;
+                cmSectionsDelete.Visible = true;
+                cmSectionsEdit.Visible = true;
             }
             else
             {
-                DeleteAlbum.Enabled = false;
-                EditAlbum.Enabled = false;
+                cmSectionsDelete.Visible = false;
+                cmSectionsEdit.Visible = false;
             }
-            textBox1.Enabled = treeView1.Nodes[0].IsSelected;
-            button2.Enabled = treeView1.Nodes[2].IsSelected;
+            txtSearch.Enabled = tvSections.Nodes[0].IsSelected || tvSections.Nodes[1].IsSelected;
+            btnPopular.Enabled = tvSections.Nodes[2].IsSelected;
 
-            if (e.Node == treeView1.Nodes[1])
+            if (e.Node == tvSections.Nodes[1])
             {
                 FillMyAudios(-1);
             }
@@ -863,20 +877,20 @@ catch (ArgumentOutOfRangeException)
             }
             else if (e.Node.Parent != null && e.Node.Text == Albums[e.Node.Index].Title)
             {
-                FillMyAudios(Albums[treeView1.SelectedNode.Index].id);
+                FillMyAudios(Albums[tvSections.SelectedNode.Index].id);
             }
         }
 
         private async void Add_ClickAsync(object sender, EventArgs e)
         {
-            if (await AudioAddAsync(AudioList[listView1.SelectedIndices[0]].id, AudioList[listView1.SelectedIndices[0]].Owner_id))
+            if (await AudioAddAsync(AudioList[lvAudios.SelectedIndices[0]].id, AudioList[lvAudios.SelectedIndices[0]].Owner_id))
             {
                 await AudioGetAsync();
-                MessageBox.Show("Added audio to your audio library", "Success");
+                MessageBox.Show("Аудио запись добавлена в вашу библиотеку", "Успешно");
             }
             else
             {
-                MessageBox.Show("Could not Add audio to your audio library", "Error");
+                MessageBox.Show("Не удалось добавить аудио запись в вашу библиотеку", "Ошибка");
             }
         }
 
@@ -887,27 +901,8 @@ catch (ArgumentOutOfRangeException)
 
         private async void Delete_ClickAsync(object sender, EventArgs e)
         {
-            index = MyAudios.FindIndex(x => x.id == (int)listView1.SelectedItems[0].Tag);
-            if (Delete.Text == "Restore audio")
-            {
-                DialogResult dialogResult = MessageBox.Show($"Do you want to restore {MyAudios[index].Title}?", "Restore audio", MessageBoxButtons.YesNo);
-                if (dialogResult == DialogResult.Yes)
-                {
-                    if (await AudioRestoreAsync(MyAudios[index].id, MyAudios[index].Owner_id))
-                    {
-                        MyAudios[index].Deleted = false;
-                    }
-                    else
-                    {
-                        MessageBox.Show("Could not restore audio. maybe too late.", "Error");
-                        MyAudios.RemoveAt(index);
-                        listView1.Items.RemoveAt(listView1.SelectedIndices[0]);
-                    }
-                }
-            }
-            else
-            {
-                DialogResult dialogResult = MessageBox.Show($"Do you want to delete {MyAudios[index].Title} from your library? Note: you will be able to restore audio during next 20 minutes", "Delete audio", MessageBoxButtons.YesNo);
+            index = MyAudios.FindIndex(x => x.id == (int)lvAudios.SelectedItems[0].Tag);
+                DialogResult dialogResult = MessageBox.Show($"Желаете удалить {MyAudios[index].Title} из вашей библиотеки? Примечание, вы сможете востановить данную аудио запись в течении следующих 20 минут.", "Delete audio", MessageBoxButtons.YesNo);
                 if (dialogResult == DialogResult.Yes)
                 {
                     if (await AudioDeleteAsync(MyAudios[index].id, MyAudios[index].Owner_id))
@@ -916,16 +911,15 @@ catch (ArgumentOutOfRangeException)
                     }
                     else
                     {
-                        MessageBox.Show("Could not delete audio from your audio library", "Error");
+                        MessageBox.Show("Не удалось удалить аудио запись из вашей библиотеки", "Ошибка");
                     }
                 }
             }
-        }
 
                     private async void AddAlbum_Click(object sender, EventArgs e)
         {
             string value = "";
-            if (InputBox.Show("Add album", "enter a name for an album", ref value) == DialogResult.OK)
+            if (InputBox.Show("Добавить альбом", "Введите название альбома", ref value) == DialogResult.OK)
             {
                 await AudioAddAlbumAsync(value);
             }
@@ -933,32 +927,32 @@ catch (ArgumentOutOfRangeException)
 
         private async void EditAlbum_Click(object sender, EventArgs e)
         {
-            index = Albums.FindIndex(x => x.id == (int)treeView1.SelectedNode.Tag);
+            index = Albums.FindIndex(x => x.id == (int)tvSections.SelectedNode.Tag);
             string value = Albums[index].Title;
-            if (InputBox.Show("Edit album", "enter a new name for an album", ref value) == DialogResult.OK)
+            if (InputBox.Show("Редактировать альбом", "Введите новое название для альбома", ref value) == DialogResult.OK)
             {
                 if (await AudioEditAlbumAsync(value, Albums[index].id))
                 {
                     Albums[index].Title = value;
-                    treeView1.Nodes[1].Nodes[index].Text = value;
+                    tvSections.Nodes[1].Nodes[index].Text = value;
                 }
                 }
         }
 
         private async void DeleteAlbum_Click(object sender, EventArgs e)
         {
-            index = Albums.FindIndex(x => x.id == (int)treeView1.SelectedNode.Tag);
-            DialogResult dialogResult = MessageBox.Show($"Do you want to delete {Albums[index].Title} from your library?", "Delete audio", MessageBoxButtons.YesNo);
+            index = Albums.FindIndex(x => x.id == (int)tvSections.SelectedNode.Tag);
+            DialogResult dialogResult = MessageBox.Show($"Желаете удалить {Albums[index].Title}?", "Удалить альбом", MessageBoxButtons.YesNo);
             if (dialogResult == DialogResult.Yes)
             {
                 if (await AudioDeleteAlbumAsync(Albums[index].id))
                 {
                     Albums.RemoveAt(index);
-                    treeView1.Nodes[1].Nodes.RemoveAt(treeView1.SelectedNode.Index);
+                    tvSections.Nodes[1].Nodes.RemoveAt(tvSections.SelectedNode.Index);
                 }
                 else
                 {
-                    MessageBox.Show("Could not delete album", "Error");
+                    MessageBox.Show("Не удалось удалить альбом", "Ошибка");
                 }
             }
             }
@@ -969,41 +963,91 @@ catch (ArgumentOutOfRangeException)
             report.Show();
         }
 
-        private void TreeView1_KeyDown(object sender, KeyEventArgs e)
+        private void TvSections_KeyDown(object sender, KeyEventArgs e)
         {
             switch (e.KeyData)
             {
                 case Keys.Delete:
-                    if (treeView1.SelectedNode.Parent == treeView1.Nodes[1] && treeView1.SelectedNode.Text != "Non album items") {
-                        DeleteAlbum.PerformClick();
+                    if (tvSections.SelectedNode.Parent == tvSections.Nodes[1] && tvSections.SelectedNode.Text != "Non album items") {
+                        cmSectionsDelete.PerformClick();
             }
             break;
                 case Keys.F2:
-            if (treeView1.SelectedNode.Parent == treeView1.Nodes[1] && treeView1.SelectedNode.Text != "Non album items") {
-                EditAlbum.PerformClick();
+            if (tvSections.SelectedNode.Parent == tvSections.Nodes[1] && tvSections.SelectedNode.Text != "Non album items") {
+                cmSectionsEdit.PerformClick();
         }
             break;
             }
             }
 
-        private void ListView1_SelectedIndexChanged(object sender, EventArgs e)
+        private void LvAudios_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (listView1.SelectedItems.Count == 0)
+            if (lvAudios.SelectedItems.Count == 0)
                 return;
-            if (treeView1.SelectedNode == treeView1.Nodes[1] || treeView1.SelectedNode.Parent == treeView1.Nodes[1])
+            if (tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1])
             {
-                index = MyAudios.FindIndex(x => x.id == (int)listView1.SelectedItems[0].Tag);
+                index = MyAudios.FindIndex(x => x.id == (int)lvAudios.SelectedItems[0].Tag);
                 if (MyAudios[index].Deleted)
                 {
-                    Delete.Text = "Restore audio";
+                    cmAudiosDelete.Visible = false;
+                    cmAudiosRestore.Visible = true;
                     Console.Beep();
                 }
                 else
                 {
-                    Delete.Text = "Delete audio";
+                    cmAudiosDelete.Visible = true;
+                    cmAudiosRestore.Visible = false;
                 }
             }
                 }
+
+        private void mbFileProxy_Click(object sender, EventArgs e)
+        {
+                        if (!mbFileProxy.Checked)
+                            {
+                settings.Write("Proxy", "true");
+                mbFileProxy.Checked = true;
+                proxy = true;
+            }
+                        else
+            {
+                settings.Write("Proxy", "false");
+                mbFileProxy.Checked = false;
+                proxy = false;
+            }
+
+        }
+
+        private async void cmAudiosRestore_ClickAsync(object sender, EventArgs e)
+        {
+            index = MyAudios.FindIndex(x => x.id == (int)lvAudios.SelectedItems[0].Tag);
+            DialogResult dialogResult = MessageBox.Show($"Желаете востановить {MyAudios[index].Title}?", "Востановить аудио запись", MessageBoxButtons.YesNo);
+            if (dialogResult == DialogResult.Yes)
+            {
+                if (await AudioRestoreAsync(MyAudios[index].id, MyAudios[index].Owner_id))
+                {
+                    MyAudios[index].Deleted = false;
+                }
+                else
+                {
+                    MessageBox.Show("Не удалось востановить аудио запись. скорее всего истекло время.", "Ошибка");
+                    MyAudios.RemoveAt(index);
+                    lvAudios.Items.RemoveAt(lvAudios.SelectedIndices[0]);
+                }
+            }
+        }
+
+        private async void cmAudiosDownload_ClickAsync(object sender, EventArgs e)
+        {
+            if (lvAudios.CheckedItems.Count > 1)
+            {
+                await DownloadMultipleAsync();
+            }
+            else
+            {
+                DownloadSingle();
+            }
+        }
 
 
     }

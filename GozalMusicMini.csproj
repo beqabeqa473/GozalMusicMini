@@ -143,9 +143,6 @@
     <EmbeddedResource Include="mainForm.resx">
       <DependentUpon>mainForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="mainForm.ru.resx">
-      <DependentUpon>mainForm.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>

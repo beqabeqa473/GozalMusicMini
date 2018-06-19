@@ -16,12 +16,12 @@ namespace GozalMusicMini
             secure.OnResponseReceived += new SecureConnection.ResponseReceivedHandler(secure_OnResponseReceived);
             secure.SetServerURL("https://gozaltech.org/auth/");
             secure.EstablishSecureConnectionAsync();
-            button1.Enabled = false;
+            btnLogin.Enabled = false;
         }
 
         private void secure_OnResponseReceived(object sender, ResponseReceivedEventArgs e)
         {
-            button1.Enabled = true;
+            btnLogin.Enabled = true;
             JObject credentials = JObject.Parse(e.Response);
             string token = credentials["token"].ToString();
             int uid = (int)credentials["uid"];
@@ -30,39 +30,40 @@ namespace GozalMusicMini
                 var MyIni = new IniFile();
                 MyIni.Write("Token", token);
                 MyIni.Write("UserID", uid.ToString());
-                MessageBox.Show("Authorization succeeded", "Success");
+                MessageBox.Show("Авторизация прошла успешно", "Успешно");
                 secure.CloseConnection();
                 new MainForm().ShowDialog();
                 this.Close();
             } else {
-                MessageBox.Show("Authorization failed, check your credentials!", "Error");
+                MessageBox.Show("Авторизация не удалась", "Ошибка");
             }
             }
 
         private void secure_OnConnectionEstablished(object sender, OnConnectionEstablishedEventArgs e)
         {
-            button1.Enabled = true;
+            btnLogin.Enabled = true;
         }
 
-        private void button2_Click(object sender, EventArgs e)
+        private void btnLogin_Click(object sender, EventArgs e)
+        {
+            if (txtLogin.Text.Length != 0 && txtPassword.Text.Length >= 5) {
+            string data = $"authorize,{txtLogin.Text},{txtPassword.Text}";
+            if (secure.ReadyToSendData)
+            {
+                secure.SendDataSecureAsync(data);
+                    btnLogin.Enabled = false;
+                }
+        } else if (txtLogin.Text.Length == 0 || txtPassword.Text.Length == 0)
+            {
+                MessageBox.Show("Не все поля заполнены", "Ошибка");
+            }
+        }
+
+        private void btnCancel_Click(object sender, EventArgs e)
         {
             secure.CloseConnection();
             this.Close();
         }
 
-        private void button1_Click(object sender, EventArgs e)
-        {
-            if (textBox1.Text.Length != 0 && textBox2.Text.Length >= 5) {
-            string data = $"authorize,{textBox1.Text},{textBox2.Text}";
-            if (secure.ReadyToSendData)
-            {
-                secure.SendDataSecureAsync(data);
-                    button1.Enabled = false;
-                }
-        } else if (textBox1.Text.Length == 0 || textBox2.Text.Length == 0)
-            {
-                MessageBox.Show("some of fields are not filled", "Error");
-            }
-        }
     }
 }

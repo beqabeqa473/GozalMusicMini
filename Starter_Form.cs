@@ -44,7 +44,7 @@ namespace GozalMusicMini
                 if (responseBody == "403")
                 {
                     IsLoggedIn = false;
-                    MessageBox.Show("Access denied", "Error");
+                    MessageBox.Show("Доступ запрещен", "Ошибка");
                     Application.Exit();
                 }
                 else if (responseBody == "401" || responseBody == "404")
@@ -72,7 +72,7 @@ namespace GozalMusicMini
                 if (Version.Parse(Application.ProductVersion) < Version.Parse(update.Version))
                 {
                     string value = update.Changes;
-                    if (InputBox.Show("New update is available", $"a new version {update.Version} of {Application.ProductName} is available. Press OK to download and install it, or Cancel to do it later.", ref value, true, true) == DialogResult.OK)
+                    if (InputBox.Show("Доступно обновление", $"новая версия {update.Version} {Application.ProductName} доступна для скачивания. нажмите ok для скачивания и установки данного обновления, или отмену для последующей установки.", ref value, true, true) == DialogResult.OK)
                     {
                         System.IO.File.Move(AppDomain.CurrentDomain.FriendlyName, AppDomain.CurrentDomain.FriendlyName + ".back");
                         using (var wC = new WebClient())
@@ -95,7 +95,7 @@ namespace GozalMusicMini
             }
             else
             {
-                MessageBox.Show("File hashes do not equal. old version will be used. Please try again.", "error");
+                MessageBox.Show("контрольные суммы файлов не совпадают. будет возвращена старая версия. пожалуйста попробуйте еще раз.", "Ошибка");
                 File.Delete(AppDomain.CurrentDomain.FriendlyName);
                 File.Move(AppDomain.CurrentDomain.FriendlyName + ".back", AppDomain.CurrentDomain.FriendlyName);
             }

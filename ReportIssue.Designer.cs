@@ -41,9 +41,9 @@
             this.lbTitle.AutoSize = true;
             this.lbTitle.Location = new System.Drawing.Point(0, 0);
             this.lbTitle.Name = "lbTitle";
-            this.lbTitle.Size = new System.Drawing.Size(55, 13);
+            this.lbTitle.Size = new System.Drawing.Size(102, 13);
             this.lbTitle.TabIndex = 0;
-            this.lbTitle.Text = "Issue Title";
+            this.lbTitle.Text = "Заголовок ошибки";
             // 
             // titleTxt
             // 
@@ -57,9 +57,9 @@
             this.lbComment.AutoSize = true;
             this.lbComment.Location = new System.Drawing.Point(0, 0);
             this.lbComment.Name = "lbComment";
-            this.lbComment.Size = new System.Drawing.Size(51, 13);
+            this.lbComment.Size = new System.Drawing.Size(37, 13);
             this.lbComment.TabIndex = 2;
-            this.lbComment.Text = "Comment";
+            this.lbComment.Text = "Текст";
             // 
             // commentTxt
             // 
@@ -78,7 +78,7 @@
             this.btnReport.Name = "btnReport";
             this.btnReport.Size = new System.Drawing.Size(75, 23);
             this.btnReport.TabIndex = 4;
-            this.btnReport.Text = "&Report";
+            this.btnReport.Text = "Отправить";
             this.btnReport.UseVisualStyleBackColor = true;
             this.btnReport.Click += new System.EventHandler(this.btnReport_ClickAsync);
             // 
@@ -89,7 +89,7 @@
             this.btnClose.Name = "btnClose";
             this.btnClose.Size = new System.Drawing.Size(75, 23);
             this.btnClose.TabIndex = 5;
-            this.btnClose.Text = "&Close";
+            this.btnClose.Text = "Закрыть";
             this.btnClose.UseVisualStyleBackColor = true;
             this.btnClose.Click += new System.EventHandler(this.btnClose_Click);
             // 
@@ -107,7 +107,7 @@
             this.Controls.Add(this.titleTxt);
             this.Controls.Add(this.lbTitle);
             this.Name = "ReportIssue";
-            this.Text = "ReportIssue";
+            this.Text = "Сообщить об ошибке";
             this.ResumeLayout(false);
             this.PerformLayout();
 
