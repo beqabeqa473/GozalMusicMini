@@ -1,4 +1,6 @@
-﻿namespace GozalMusicMini
+﻿using System.Windows.Forms;
+
+namespace GozalMusicMini
 {
     partial class ReportIssue
     {
@@ -28,55 +30,82 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.tblReportIssue = new System.Windows.Forms.TableLayoutPanel();
             this.lbTitle = new System.Windows.Forms.Label();
             this.titleTxt = new System.Windows.Forms.TextBox();
             this.lbComment = new System.Windows.Forms.Label();
             this.commentTxt = new System.Windows.Forms.TextBox();
             this.btnReport = new System.Windows.Forms.Button();
             this.btnClose = new System.Windows.Forms.Button();
+            this.tblReportIssue.SuspendLayout();
             this.SuspendLayout();
+            // 
+            // tblReportIssue
+            // 
+            this.tblReportIssue.ColumnCount = 2;
+            this.tblReportIssue.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.tblReportIssue.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.tblReportIssue.Controls.Add(this.lbTitle, 0, 0);
+            this.tblReportIssue.Controls.Add(this.titleTxt, 0, 1);
+            this.tblReportIssue.Controls.Add(this.lbComment, 1, 0);
+            this.tblReportIssue.Controls.Add(this.commentTxt, 1, 1);
+            this.tblReportIssue.Controls.Add(this.btnReport, 0, 2);
+            this.tblReportIssue.Controls.Add(this.btnClose, 1, 2);
+            this.tblReportIssue.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tblReportIssue.Location = new System.Drawing.Point(0, 0);
+            this.tblReportIssue.Name = "tblReportIssue";
+            this.tblReportIssue.RowCount = 3;
+            this.tblReportIssue.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.tblReportIssue.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.tblReportIssue.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            this.tblReportIssue.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            this.tblReportIssue.Size = new System.Drawing.Size(772, 450);
+            this.tblReportIssue.TabIndex = 0;
             // 
             // lbTitle
             // 
             this.lbTitle.AutoSize = true;
-            this.lbTitle.Location = new System.Drawing.Point(0, 0);
+            this.lbTitle.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lbTitle.Location = new System.Drawing.Point(3, 0);
             this.lbTitle.Name = "lbTitle";
-            this.lbTitle.Size = new System.Drawing.Size(102, 13);
+            this.lbTitle.Size = new System.Drawing.Size(380, 215);
             this.lbTitle.TabIndex = 0;
             this.lbTitle.Text = "Заголовок ошибки";
             // 
             // titleTxt
             // 
-            this.titleTxt.Location = new System.Drawing.Point(8, 8);
+            this.titleTxt.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.titleTxt.Location = new System.Drawing.Point(3, 218);
             this.titleTxt.Name = "titleTxt";
-            this.titleTxt.Size = new System.Drawing.Size(100, 20);
+            this.titleTxt.Size = new System.Drawing.Size(380, 20);
             this.titleTxt.TabIndex = 1;
             // 
             // lbComment
             // 
             this.lbComment.AutoSize = true;
-            this.lbComment.Location = new System.Drawing.Point(0, 0);
+            this.lbComment.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lbComment.Location = new System.Drawing.Point(389, 0);
             this.lbComment.Name = "lbComment";
-            this.lbComment.Size = new System.Drawing.Size(37, 13);
+            this.lbComment.Size = new System.Drawing.Size(380, 215);
             this.lbComment.TabIndex = 2;
             this.lbComment.Text = "Текст";
             // 
             // commentTxt
             // 
-            this.commentTxt.AcceptsReturn = true;
-            this.commentTxt.Location = new System.Drawing.Point(8, 8);
+            this.commentTxt.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.commentTxt.Location = new System.Drawing.Point(389, 218);
             this.commentTxt.Multiline = true;
             this.commentTxt.Name = "commentTxt";
-            this.commentTxt.Size = new System.Drawing.Size(100, 20);
+            this.commentTxt.Size = new System.Drawing.Size(380, 209);
             this.commentTxt.TabIndex = 3;
-            this.commentTxt.WordWrap = false;
             this.commentTxt.KeyDown += new System.Windows.Forms.KeyEventHandler(this.commentTxt_KeyDown);
             // 
             // btnReport
             // 
-            this.btnReport.Location = new System.Drawing.Point(8, 8);
+            this.btnReport.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.btnReport.Location = new System.Drawing.Point(3, 433);
             this.btnReport.Name = "btnReport";
-            this.btnReport.Size = new System.Drawing.Size(75, 23);
+            this.btnReport.Size = new System.Drawing.Size(380, 14);
             this.btnReport.TabIndex = 4;
             this.btnReport.Text = "Отправить";
             this.btnReport.UseVisualStyleBackColor = true;
@@ -84,10 +113,10 @@
             // 
             // btnClose
             // 
-            this.btnClose.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.btnClose.Location = new System.Drawing.Point(16, 16);
+            this.btnClose.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.btnClose.Location = new System.Drawing.Point(389, 433);
             this.btnClose.Name = "btnClose";
-            this.btnClose.Size = new System.Drawing.Size(75, 23);
+            this.btnClose.Size = new System.Drawing.Size(380, 14);
             this.btnClose.TabIndex = 5;
             this.btnClose.Text = "Закрыть";
             this.btnClose.UseVisualStyleBackColor = true;
@@ -100,26 +129,26 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.btnClose;
             this.ClientSize = new System.Drawing.Size(772, 450);
-            this.Controls.Add(this.btnClose);
-            this.Controls.Add(this.btnReport);
-            this.Controls.Add(this.commentTxt);
-            this.Controls.Add(this.lbComment);
-            this.Controls.Add(this.titleTxt);
-            this.Controls.Add(this.lbTitle);
+            this.ControlBox = false;
+            this.Controls.Add(this.tblReportIssue);
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
             this.Name = "ReportIssue";
             this.Text = "Сообщить об ошибке";
+            this.tblReportIssue.ResumeLayout(false);
+            this.tblReportIssue.PerformLayout();
             this.ResumeLayout(false);
-            this.PerformLayout();
 
         }
 
         #endregion
 
-        private System.Windows.Forms.Label lbTitle;
-        private System.Windows.Forms.TextBox titleTxt;
-        private System.Windows.Forms.Label lbComment;
-        private System.Windows.Forms.TextBox commentTxt;
-        private System.Windows.Forms.Button btnReport;
-        private System.Windows.Forms.Button btnClose;
+        private TableLayoutPanel tblReportIssue;
+        private Label lbTitle;
+        private TextBox titleTxt;
+        private Label lbComment;
+        private TextBox commentTxt;
+        private Button btnReport;
+        private Button btnClose;
     }
 }

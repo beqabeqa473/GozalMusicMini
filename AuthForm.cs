@@ -22,20 +22,41 @@ namespace GozalMusicMini
         private void secure_OnResponseReceived(object sender, ResponseReceivedEventArgs e)
         {
             btnLogin.Enabled = true;
-            JObject credentials = JObject.Parse(e.Response);
-            string token = credentials["token"].ToString();
-            int uid = (int)credentials["uid"];
-            if (token.Length != 0 && uid != 0)
+            JToken credentials = JToken.Parse(e.Response);
+            bool success = (bool)credentials["success"];
+            if (success == false)
             {
-                var MyIni = new IniFile();
-                MyIni.Write("Token", token);
-                MyIni.Write("UserID", uid.ToString());
+                int errorCode = (int)credentials["code"];
+                if (errorCode == 1)
+                {
+                    MessageBox.Show(credentials["description"].ToString(), "Ошибка");
+                }
+                else if (errorCode == 2)
+                {
+                    string value = "";
+                    if (InputBox.Show("Подтверждение авторизации", credentials["description"].ToString(), ref value) == DialogResult.OK)
+                    {
+                        string data = $"authorize,{txtLogin.Text},{txtPassword.Text},{value}";
+                        if (secure.ReadyToSendData)
+                        {
+                            secure.SendDataSecureAsync(data);
+                            btnLogin.Enabled = false;
+                        }
+                    }
+                }
+                }
+                else
+            {
+                string token = credentials["token"].ToString();
+                int uid = (int)credentials["uid"];
+                    var MyIni = new IniFile();
+                    MyIni.Write("Token", token);
+                    MyIni.Write("UserID", uid.ToString());
                 MessageBox.Show("Авторизация прошла успешно", "Успешно");
-                secure.CloseConnection();
-                new MainForm().ShowDialog();
-                this.Close();
-            } else {
-                MessageBox.Show("Авторизация не удалась", "Ошибка");
+                this.Hide();
+                var mform = new MainForm();
+                mform.Closed += (s, args) => this.Close();
+                mform.Show();
             }
             }
 
@@ -44,7 +65,7 @@ namespace GozalMusicMini
             btnLogin.Enabled = true;
         }
 
-        private void btnLogin_Click(object sender, EventArgs e)
+        private void BtnLogin_Click(object sender, EventArgs e)
         {
             if (txtLogin.Text.Length != 0 && txtPassword.Text.Length >= 5) {
             string data = $"authorize,{txtLogin.Text},{txtPassword.Text}";
@@ -59,10 +80,14 @@ namespace GozalMusicMini
             }
         }
 
-        private void btnCancel_Click(object sender, EventArgs e)
+        private void BtnCancel_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void AuthForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             secure.CloseConnection();
-            this.Close();
         }
 
     }

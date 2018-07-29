@@ -1,5 +1,4 @@
-﻿using NAudio.Wave;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -10,21 +9,20 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Un4seen.Bass;
 
 namespace GozalMusicMini
 {
     public partial class MainForm : Form
     {
-        private AudioFileReader audioFileReader = null;
-        private WaveOutEvent waveOut = null;
-        private System.Timers.Timer switchTimer;
-
         public string accessToken;
         private int userID;
         private bool proxy;
         private int index;
         private IniFile settings;
         private bool minimizedToTray;
+        private int stream;
+        private SYNCPROC syncCallback;
 
         public List<Audio> AudioList;
         public List<Audio> MyAudios;
@@ -35,6 +33,8 @@ namespace GozalMusicMini
         public MainForm()
         {
             InitializeComponent();
+            BassNet.Registration("beqaprogger@gmail.com", "2X11233721152222");
+            Bass.BASS_Init(-1, 44100, BASSInit.BASS_DEVICE_DEFAULT, IntPtr.Zero);
             InitialiseDeviceCombo();
             lvAudios.Columns.Add("Исполнитель");
             lvAudios.Columns.Add("Название");
@@ -44,7 +44,7 @@ namespace GozalMusicMini
             {
                 settings.Write("Proxy", "false");
             }
-            }
+        }
 
         protected override void WndProc(ref Message m)
         {
@@ -57,11 +57,6 @@ namespace GozalMusicMini
 
         private async void Form1_LoadAsync(object sender, EventArgs e)
         {
-            switchTimer = new System.Timers.Timer
-            {
-                Interval = 1000
-            };
-            switchTimer.Elapsed += OnSongFinished;
             accessToken = settings.Read("Token");
             userID = Int32.Parse(settings.Read("UserID"));
             proxy = bool.Parse(settings.Read("Proxy"));
@@ -80,11 +75,10 @@ namespace GozalMusicMini
             InitializeTreeview();
         }
 
-        private void OnSongFinished(object sender, System.Timers.ElapsedEventArgs e)
+        private void OnSongFinished(int handle, int channel, int data, IntPtr user)
         {
-            if (audioFileReader.CurrentTime.TotalMilliseconds > 0 && waveOut.PlaybackState == PlaybackState.Stopped)
-            {
-                lvAudios.Items[lvAudios.SelectedIndices[0] + 1].Selected = true;
+            lvAudios.Items[lvAudios.SelectedIndices[0] + 1].Focused = true;
+            lvAudios.Items[lvAudios.SelectedIndices[0] + 1].Selected = true;
                 if (tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1])
                 {
                     index = MyAudios.FindIndex(x => x.id == (int)lvAudios.SelectedItems[0].Tag);
@@ -94,16 +88,17 @@ namespace GozalMusicMini
                 {
                     PlaySound(AudioList[lvAudios.SelectedIndices[0]].Url.ToString());
                 }
-                }
         }
 
         private void InitialiseDeviceCombo()
         {
-            for (int deviceId = 0; deviceId < WaveOut.DeviceCount; deviceId++)
+int defaultDevice = Bass.BASS_GetDevice();
+            for (int deviceId = 1; deviceId < Bass.BASS_GetDeviceCount(); deviceId++)
             {
-                var capabilities = WaveOut.GetCapabilities(deviceId);
-                cbDevices.Items.Add(String.Format("Device {0} ({1})", deviceId, capabilities.ProductName));
+                BASS_DEVICEINFO device = Bass.BASS_GetDeviceInfo(deviceId);
+            cbDevices.Items.Add(device.name);
             }
+            cbDevices.SelectedIndex = defaultDevice - 1;
         }
 
         private void InitializeTreeview()
@@ -117,6 +112,8 @@ namespace GozalMusicMini
             tvSections.Nodes.Add(myAudiosNode);
             TreeNode popularNode = new TreeNode("Популярное");
             tvSections.Nodes.Add(popularNode);
+            TreeNode recommendationsNode = new TreeNode("Рекомендации");
+            tvSections.Nodes.Add(recommendationsNode);
             tvSections.SelectedNode = searchNode;
             if (Albums.Count == 0)
             {
@@ -282,6 +279,28 @@ namespace GozalMusicMini
             btnPopular.Enabled = true;
         }
 
+        private async Task GetRecommendationsAsync(string targetAudios = null, string userId = null)
+        {
+            var values = new Dictionary<string, string>
+{
+{"method", "audiogetrecommendations"},
+{"access_token", accessToken}
+};
+            if (targetAudios != null)
+            {
+                values.Add("target_audios", targetAudios);
+            }
+            if (userId != null)
+            {
+                values.Add("user_id", userId);
+            }
+            string response = await MakeVKGetRequest(values);
+            JToken token = JToken.Parse(response);
+            AudioList = token["response"]["items"].Children().Select(c => c.ToObject<Audio>()).ToList();
+            Display();
+            lvAudios.Focus();
+        }
+
         private async Task<bool> AudioAddAsync(int aId, int oId)
         {
             var values = new Dictionary<string, string>
@@ -374,35 +393,25 @@ namespace GozalMusicMini
 
             public void PlaySound(string filename)
         {
-            CloseWaveOut();
-            waveOut = new WaveOutEvent();
-            waveOut.DeviceNumber = cbDevices.SelectedIndex;
-            //waveOut.PlaybackStopped += AudioOutput_PlaybackStopped; this is naudio playback stopped event
-            audioFileReader = new AudioFileReader(filename)
+            //Bass.BASS_StreamFree(stream);
+            syncCallback = new SYNCPROC(OnSongFinished);
+            BASSActive isActive = default(BASSActive);
+            isActive = Bass.BASS_ChannelIsActive(stream);
+            if (isActive == BASSActive.BASS_ACTIVE_PLAYING)
             {
-                Volume = tbVolume.Value / 100.0f
-            };
-            waveOut.Init(audioFileReader);
-            switchTimer.Start();
-            waveOut.Play();
+                Bass.BASS_ChannelStop(stream);
+            }
+            stream = Bass.BASS_StreamCreateURL(filename, 0, 0, null, IntPtr.Zero);
+            Bass.BASS_ChannelSetAttribute(stream, BASSAttribute.BASS_ATTRIB_VOL, tbVolume.Value / 100F);
+            Bass.BASS_ChannelSetSync(stream, BASSSync.BASS_SYNC_END, 0, syncCallback, IntPtr.Zero);
+            Bass.BASS_ChannelPlay(stream, false);
         }
 
         //void AudioOutput_PlaybackStopped(object sender, StoppedEventArgs e)
         //{
-                //lvAudios.SetSelected(lvAudios.SelectedIndex + 1, true);
-                //PlaySound(AudioList[lvAudios.SelectedIndex].Url.ToString());
-            //}        
-
-        private void CloseWaveOut()
-        {
-            if (waveOut == null) return;
-                waveOut.Stop();
-                waveOut.Dispose();
-                waveOut = null;
-            if (audioFileReader == null) return;
-                audioFileReader.Dispose();
-                audioFileReader = null;
-        }
+        //lvAudios.SetSelected(lvAudios.SelectedIndex + 1, true);
+        //PlaySound(AudioList[lvAudios.SelectedIndex].Url.ToString());
+        //}        
 
         private void Playfile() 
         {
@@ -554,7 +563,9 @@ namespace GozalMusicMini
                     {
                         try
                         {
-                            audioFileReader.CurrentTime = audioFileReader.CurrentTime + TimeSpan.FromSeconds(3);
+                            double length = Bass.BASS_ChannelBytes2Seconds(stream, Bass.BASS_ChannelGetLength(stream));
+                            double curPos = Bass.BASS_ChannelBytes2Seconds(stream, Bass.BASS_ChannelGetPosition(stream));
+                            Bass.BASS_ChannelSetPosition(stream, curPos + Convert.ToDouble(2));
                             return true;
                         }
                         catch (Exception ex) when (ex is NullReferenceException || ex is ArgumentOutOfRangeException)
@@ -571,7 +582,8 @@ namespace GozalMusicMini
                     {
                         try
                         {
-                            audioFileReader.CurrentTime = audioFileReader.CurrentTime - TimeSpan.FromSeconds(3);
+                            double curPos = Bass.BASS_ChannelBytes2Seconds(stream, Bass.BASS_ChannelGetPosition(stream));
+                            Bass.BASS_ChannelSetPosition(stream, curPos - Convert.ToDouble(2));
                             return true;
                         }
                         catch (Exception ex) when (ex is NullReferenceException || ex is ArgumentOutOfRangeException)
@@ -615,18 +627,17 @@ namespace GozalMusicMini
                     break;
                 case Keys.Space:
                 case Keys.MediaPlayPause:
-                    if (waveOut != null)
+                    BASSActive isActive = default(BASSActive);
+                    isActive = Bass.BASS_ChannelIsActive(stream);
+                    if (isActive == BASSActive.BASS_ACTIVE_PLAYING)
                     {
-                        if (waveOut.PlaybackState == PlaybackState.Playing)
-                        {
-                            waveOut.Pause();
-                        }
-                        else
-                        {
-                            waveOut.Play();
-                        }
+                        Bass.BASS_ChannelPause(stream);
                     }
-                    e.Handled = e.SuppressKeyPress = true;
+                    else if (isActive == BASSActive.BASS_ACTIVE_PAUSED)
+                    {
+                        Bass.BASS_ChannelPlay(stream, false);
+                    }
+                        e.Handled = e.SuppressKeyPress = true;
                     break;
             }
         }
@@ -635,8 +646,8 @@ namespace GozalMusicMini
     {
         try
         {
-            audioFileReader.Volume = tbVolume.Value / 100.0f;
-        }
+                Bass.BASS_ChannelSetAttribute(stream, BASSAttribute.BASS_ATTRIB_VOL, tbVolume.Value / 100F);
+            }
         catch (Exception)
             {
         }
@@ -644,33 +655,25 @@ namespace GozalMusicMini
  
     private void TbSeek_Scroll(object sender, EventArgs e)
     {
-            if (waveOut != null)
-            {
-                audioFileReader.CurrentTime = TimeSpan.FromSeconds(audioFileReader.TotalTime.TotalSeconds * tbSeek.Value / 100.0);
-            }
+            double length = Bass.BASS_ChannelBytes2Seconds(stream, Bass.BASS_ChannelGetLength(stream));
+            Bass.BASS_ChannelSetPosition(stream, length * tbSeek.Value / 100);
         }
 
         private void CbDevices_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (waveOut != null)
-            {
-                waveOut.Dispose();
-                waveOut = new WaveOutEvent();
-                waveOut.DeviceNumber = cbDevices.SelectedIndex;
-                //waveOut.PlaybackStopped += AudioOutput_PlaybackStopped;
-                waveOut.Init(audioFileReader);
-                waveOut.Play();
-            }
+            int deviceIndex = cbDevices.SelectedIndex + 1;
+            Bass.BASS_Init(deviceIndex, 44100, (BASSInit)0, IntPtr.Zero);
+            Bass.BASS_SetDevice(deviceIndex);
+            Bass.BASS_ChannelSetDevice(stream, deviceIndex);
         }
 
         private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
     {
-            switchTimer.Stop();
-            switchTimer.Dispose();
-            CloseWaveOut();
+            Bass.BASS_StreamFree(stream);
+            Bass.BASS_Free();
         }
 
-    private void Display()
+        private void Display()
     {
             if (AudioList.Count() == 0)
             {
@@ -769,7 +772,7 @@ catch (ArgumentOutOfRangeException)
         {
             try
             {
-                audioFileReader.Volume = tbVolume.Value / 100.0f;
+                Bass.BASS_ChannelSetAttribute(stream, Un4seen.Bass.BASSAttribute.BASS_ATTRIB_VOL, tbVolume.Value / 100F);
             }
             catch (Exception)
             {
@@ -778,15 +781,9 @@ catch (ArgumentOutOfRangeException)
 
         private void Timer1_Tick(object sender, EventArgs e)
         {
-                if (waveOut != null && audioFileReader != null)
-                {
-                TimeSpan currentTime = (waveOut.PlaybackState == PlaybackState.Stopped) ? TimeSpan.Zero : audioFileReader.CurrentTime;
-                tbSeek.Value = Math.Min(tbSeek.Maximum, (int)(100 * currentTime.TotalSeconds / audioFileReader.TotalTime.TotalSeconds));
-            }
-            else
-            {
-                tbSeek.Value = 0;
-            }
+            double len = Bass.BASS_ChannelGetLength(stream);
+                double pos = Bass.BASS_ChannelGetPosition(stream);
+            tbSeek.Value = Math.Min(tbSeek.Maximum, (int)(100 * pos / len));
         }
 
             private void MbFileExit_Click(object sender, EventArgs e)
@@ -834,39 +831,21 @@ catch (ArgumentOutOfRangeException)
             }
             }
 
-        private void TvSections_AfterSelect(object sender, TreeViewEventArgs e)
+        private async void TvSections_AfterSelectAsync(object sender, TreeViewEventArgs e)
         {
-            if (!tvSections.Nodes[1].IsSelected)
-            {
-                cmAudiosAdd.Visible = true;
-            }
-            else
-            {
-                cmAudiosAdd.Visible = false;
-            }
-            if (tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1])
-            {
-                cmAudiosEdit.Visible = true;
-                cmAudiosDelete.Visible = true;
-            }
-            else
-            {
-                cmAudiosEdit.Visible = false;
-                cmAudiosDelete.Visible = false;
-            }
-            if (tvSections.SelectedNode.Parent == tvSections.Nodes[1] && tvSections.SelectedNode.Text != "Non album items")
-            {
-                cmSectionsDelete.Visible = true;
-                cmSectionsEdit.Visible = true;
-            }
-            else
-            {
-                cmSectionsDelete.Visible = false;
-                cmSectionsEdit.Visible = false;
-            }
-            txtSearch.Enabled = tvSections.Nodes[0].IsSelected || tvSections.Nodes[1].IsSelected;
-            btnPopular.Enabled = tvSections.Nodes[2].IsSelected;
-
+            lvAudios.Items.Clear();
+            lvAudios.AccessibleName = null; 
+            txtSearch.Clear();
+                cmAudiosAdd.Visible = !tvSections.Nodes[1].IsSelected && tvSections.SelectedNode.Parent == null;
+            cmAudiosRecomsAudio.Visible = !tvSections.Nodes[1].IsSelected && tvSections.SelectedNode.Parent == null;
+            cmAudiosRecomsOwner.Visible = !tvSections.Nodes[1].IsSelected && tvSections.SelectedNode.Parent == null;
+            cmAudiosEdit.Visible = tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1];
+                cmAudiosDelete.Visible = tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1];
+                cmSectionsDelete.Visible = tvSections.SelectedNode.Parent == tvSections.Nodes[1] && tvSections.SelectedNode.Text != "Non album items";
+                cmSectionsEdit.Visible = tvSections.SelectedNode.Parent == tvSections.Nodes[1] && tvSections.SelectedNode.Text != "Non album items";
+            lbSearch.Visible = tvSections.Nodes[0].IsSelected;
+            txtSearch.Visible = tvSections.Nodes[0].IsSelected;
+            btnPopular.Visible = tvSections.Nodes[2].IsSelected;
             if (e.Node == tvSections.Nodes[1])
             {
                 FillMyAudios(-1);
@@ -878,6 +857,10 @@ catch (ArgumentOutOfRangeException)
             else if (e.Node.Parent != null && e.Node.Text == Albums[e.Node.Index].Title)
             {
                 FillMyAudios(Albums[tvSections.SelectedNode.Index].id);
+            }
+            else if (e.Node == tvSections.Nodes[3])
+            {
+                await GetRecommendationsAsync(null, userID.ToString());
             }
         }
 
@@ -1015,7 +998,6 @@ catch (ArgumentOutOfRangeException)
                 mbFileProxy.Checked = false;
                 proxy = false;
             }
-
         }
 
         private async void cmAudiosRestore_ClickAsync(object sender, EventArgs e)
@@ -1048,6 +1030,16 @@ catch (ArgumentOutOfRangeException)
                 DownloadSingle();
             }
         }
+
+        private async void cmAudiosRecomsAudio_ClickAsync(object sender, EventArgs e)
+        {
+                await GetRecommendationsAsync(AudioList[lvAudios.SelectedIndices[0]].id.ToString() + "_" + AudioList[lvAudios.SelectedIndices[0]].Owner_id.ToString(), null);
+            }
+
+        private async void cmAudiosRecomsOwner_ClickAsync(object sender, EventArgs e)
+        {
+                await GetRecommendationsAsync(null, AudioList[lvAudios.SelectedIndices[0]].Owner_id.ToString());
+            }
 
 
     }
