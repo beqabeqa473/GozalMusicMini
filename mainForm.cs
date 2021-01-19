@@ -7,6 +7,7 @@ using System.Data;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Un4seen.Bass;
@@ -401,6 +402,7 @@ int defaultDevice = Bass.BASS_GetDevice();
             {
                 Bass.BASS_ChannelStop(stream);
             }
+            filename = Regex.Replace(filename, @"/[a-zA-Z\d]{6,}(/.*?[a-zA-Z\d]+?)/index.m3u8()", @"$1$2.mp3");
             stream = Bass.BASS_StreamCreateURL(filename, 0, 0, null, IntPtr.Zero);
             Bass.BASS_ChannelSetAttribute(stream, BASSAttribute.BASS_ATTRIB_VOL, tbVolume.Value / 100F);
             Bass.BASS_ChannelSetSync(stream, BASSSync.BASS_SYNC_END, 0, syncCallback, IntPtr.Zero);
