@@ -446,15 +446,17 @@ int defaultDevice = Bass.BASS_GetDevice();
 
         private void DownloadSingle()
         {
-            string fName = "";
+            string fName, fUrl;
             if (tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1])
             {
                 index = MyAudios.FindIndex(x => x.id == (int)lvAudios.SelectedItems[0].Tag);
                 fName = MyAudios[index].Artist + " - " + MyAudios[index].Title;
+fUrl = MyAudios[index].Url;
             }
             else
             {
                 fName = AudioList[lvAudios.SelectedIndices[0]].Artist + " - " + AudioList[lvAudios.SelectedIndices[0]].Title;
+fUrl = AudioList[lvAudios.SelectedIndices[0]].Url;
             }
                 var dialog = new SaveFileDialog()
             {
@@ -471,14 +473,14 @@ int defaultDevice = Bass.BASS_GetDevice();
                     webClient.DownloadFileCompleted += new AsyncCompletedEventHandler(Completed);
                     webClient.DownloadProgressChanged += new DownloadProgressChangedEventHandler(ProgressChanged);
                     webClient.QueryString.Add("file", fName);
-                    webClient.DownloadFileAsync(new Uri(Regex.Replace(@AudioList[lvAudios.SelectedIndices[0]].Url.ToString(), @"/[a-zA-Z\d]{6,}(/.*?[a-zA-Z\d]+?)/index.m3u8()", @"$1$2.mp3")), dialog.FileName);
+                    webClient.DownloadFileAsync(new Uri(Regex.Replace(fUrl, @"/[a-zA-Z\d]{6,}(/.*?[a-zA-Z\d]+?)/index.m3u8()", @"$1$2.mp3")), dialog.FileName);
                 }
                 }
                 }
 
         private async Task DownloadMultipleAsync()
         {
-            string fName = "";
+            string fName, fUrl;
             var dialog = new FolderBrowserDialog()
             {
                 Description = "Выберите директорию для сохранения треков",
@@ -491,19 +493,21 @@ int defaultDevice = Bass.BASS_GetDevice();
                 {
                     webClient.DownloadFileCompleted += new AsyncCompletedEventHandler(Completed);
                     webClient.DownloadProgressChanged += new DownloadProgressChangedEventHandler(ProgressChanged);
-                    webClient.QueryString.Add("file", fName);
                     foreach (ListViewItem item in lvAudios.CheckedItems)
                     {
                         if (tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1])
                         {
                             index = MyAudios.FindIndex(x => x.id == (int)item.Tag);
-                            fName = AudioList[index].Artist + " - " + AudioList[index].Title + ".mp3";
+                            fName = MyAudios[index].Artist + " - " + MyAudios[index].Title + ".mp3";
+fUrl = MyAudios[index].Url;
                         }
                         else
                         {
                             fName = AudioList[item.Index].Artist + " - " + AudioList[item.Index].Title + ".mp3";
+                            fUrl = AudioList[item.Index].Url;
                         }
-                            await webClient.DownloadFileTaskAsync(Regex.Replace(AudioList[item.Index].Url, @"/[a-zA-Z\d]{6,}(/.*?[a-zA-Z\d]+?)/index.m3u8()", @"$1$2.mp3"), dialog.SelectedPath  + @"\" + fName);
+                        webClient.QueryString.Add("file", fName);
+                        await webClient.DownloadFileTaskAsync(Regex.Replace(fUrl, @"/[a-zA-Z\d]{6,}(/.*?[a-zA-Z\d]+?)/index.m3u8()", @"$1$2.mp3"), dialog.SelectedPath  + @"\" + fName);
                     }
                 }
                 }
