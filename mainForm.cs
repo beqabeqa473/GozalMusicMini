@@ -18,6 +18,7 @@ namespace GozalMusicMini
     {
         public string accessToken;
         private int userID;
+private int deviceIndex;
         private bool proxy;
         private int index;
         private IniFile settings;
@@ -394,7 +395,7 @@ int defaultDevice = Bass.BASS_GetDevice();
 
             public void PlaySound(string filename)
         {
-            //Bass.BASS_StreamFree(stream);
+            Bass.BASS_StreamFree(stream);
             syncCallback = new SYNCPROC(OnSongFinished);
             BASSActive isActive = default(BASSActive);
             isActive = Bass.BASS_ChannelIsActive(stream);
@@ -406,6 +407,9 @@ int defaultDevice = Bass.BASS_GetDevice();
             stream = Bass.BASS_StreamCreateURL(filename, 0, 0, null, IntPtr.Zero);
             Bass.BASS_ChannelSetAttribute(stream, BASSAttribute.BASS_ATTRIB_VOL, tbVolume.Value / 100F);
             Bass.BASS_ChannelSetSync(stream, BASSSync.BASS_SYNC_END, 0, syncCallback, IntPtr.Zero);
+            //Bass.BASS_Init(deviceIndex, 44100, BASSInit.BASS_DEVICE_DEFAULT, IntPtr.Zero);
+            Bass.BASS_SetDevice(deviceIndex);
+            Bass.BASS_ChannelSetDevice(stream, deviceIndex);
             Bass.BASS_ChannelPlay(stream, false);
         }
 
@@ -467,7 +471,7 @@ int defaultDevice = Bass.BASS_GetDevice();
                     webClient.DownloadFileCompleted += new AsyncCompletedEventHandler(Completed);
                     webClient.DownloadProgressChanged += new DownloadProgressChangedEventHandler(ProgressChanged);
                     webClient.QueryString.Add("file", fName);
-                    webClient.DownloadFileAsync(new Uri(@AudioList[lvAudios.SelectedIndices[0]].Url.ToString()), dialog.FileName);
+                    webClient.DownloadFileAsync(new Uri(Regex.Replace(@AudioList[lvAudios.SelectedIndices[0]].Url.ToString(), @"/[a-zA-Z\d]{6,}(/.*?[a-zA-Z\d]+?)/index.m3u8()", @"$1$2.mp3")), dialog.FileName);
                 }
                 }
                 }
@@ -499,7 +503,7 @@ int defaultDevice = Bass.BASS_GetDevice();
                         {
                             fName = AudioList[item.Index].Artist + " - " + AudioList[item.Index].Title + ".mp3";
                         }
-                            await webClient.DownloadFileTaskAsync(AudioList[item.Index].Url, dialog.SelectedPath  + @"\" + fName);
+                            await webClient.DownloadFileTaskAsync(Regex.Replace(AudioList[item.Index].Url, @"/[a-zA-Z\d]{6,}(/.*?[a-zA-Z\d]+?)/index.m3u8()", @"$1$2.mp3"), dialog.SelectedPath  + @"\" + fName);
                     }
                 }
                 }
@@ -663,10 +667,12 @@ int defaultDevice = Bass.BASS_GetDevice();
 
         private void CbDevices_SelectedIndexChanged(object sender, EventArgs e)
         {
-            int deviceIndex = cbDevices.SelectedIndex + 1;
-            Bass.BASS_Init(deviceIndex, 44100, (BASSInit)0, IntPtr.Zero);
+            deviceIndex = cbDevices.SelectedIndex + 1;
+            //int oldDevice = Bass.BASS_GetDevice();
+            Bass.BASS_Init(deviceIndex, 44100, BASSInit.BASS_DEVICE_DEFAULT, IntPtr.Zero);
             Bass.BASS_SetDevice(deviceIndex);
             Bass.BASS_ChannelSetDevice(stream, deviceIndex);
+            //Bass.BASS_Free();
         }
 
         private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
