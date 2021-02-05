@@ -84,11 +84,11 @@ private int deviceIndex;
                 if (tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1])
                 {
                     index = MyAudios.FindIndex(x => x.id == (int)lvAudios.SelectedItems[0].Tag);
-                    PlaySound(MyAudios[index].Url.ToString());
+                    PlaySound(UrlToMp3(MyAudios[index].Url));
                 }
                 else
                 {
-                    PlaySound(AudioList[lvAudios.SelectedIndices[0]].Url.ToString());
+                    PlaySound(UrlToMp3(AudioList[lvAudios.SelectedIndices[0]].Url));
                 }
         }
 
@@ -393,7 +393,7 @@ int defaultDevice = Bass.BASS_GetDevice();
             audioeditfrm.Show();
         }
 
-            public void PlaySound(string filename)
+        public void PlaySound(string filename)
         {
             Bass.BASS_StreamFree(stream);
             syncCallback = new SYNCPROC(OnSongFinished);
@@ -403,7 +403,6 @@ int defaultDevice = Bass.BASS_GetDevice();
             {
                 Bass.BASS_ChannelStop(stream);
             }
-            filename = Regex.Replace(filename, @"/[a-zA-Z\d]{6,}(/.*?[a-zA-Z\d]+?)/index.m3u8()", @"$1$2.mp3");
             stream = Bass.BASS_StreamCreateURL(filename, 0, 0, null, IntPtr.Zero);
             Bass.BASS_ChannelSetAttribute(stream, BASSAttribute.BASS_ATTRIB_VOL, tbVolume.Value / 100F);
             Bass.BASS_ChannelSetSync(stream, BASSSync.BASS_SYNC_END, 0, syncCallback, IntPtr.Zero);
@@ -426,11 +425,11 @@ int defaultDevice = Bass.BASS_GetDevice();
                 if (tvSections.SelectedNode == tvSections.Nodes[1] || tvSections.SelectedNode.Parent == tvSections.Nodes[1])
                 {
                     index = MyAudios.FindIndex(x => x.id == (int)lvAudios.SelectedItems[0].Tag);
-                    PlaySound(MyAudios[index].Url.ToString());
+                    PlaySound(UrlToMp3(MyAudios[index].Url));
                 }
                 else
                 {
-                    PlaySound(AudioList[lvAudios.SelectedIndices[0]].Url.ToString());
+                    PlaySound(UrlToMp3(AudioList[lvAudios.SelectedIndices[0]].Url));
                 }
                 }
             catch (Exception ex)
@@ -451,12 +450,12 @@ int defaultDevice = Bass.BASS_GetDevice();
             {
                 index = MyAudios.FindIndex(x => x.id == (int)lvAudios.SelectedItems[0].Tag);
                 fName = MyAudios[index].Artist + " - " + MyAudios[index].Title;
-fUrl = MyAudios[index].Url;
+fUrl = UrlToMp3(MyAudios[index].Url);
             }
             else
             {
                 fName = AudioList[lvAudios.SelectedIndices[0]].Artist + " - " + AudioList[lvAudios.SelectedIndices[0]].Title;
-fUrl = AudioList[lvAudios.SelectedIndices[0]].Url;
+fUrl = UrlToMp3(AudioList[lvAudios.SelectedIndices[0]].Url);
             }
                 var dialog = new SaveFileDialog()
             {
@@ -473,7 +472,7 @@ fUrl = AudioList[lvAudios.SelectedIndices[0]].Url;
                     webClient.DownloadFileCompleted += new AsyncCompletedEventHandler(Completed);
                     webClient.DownloadProgressChanged += new DownloadProgressChangedEventHandler(ProgressChanged);
                     webClient.QueryString.Add("file", fName);
-                    webClient.DownloadFileAsync(new Uri(Regex.Replace(fUrl, @"/[a-zA-Z\d]{6,}(/.*?[a-zA-Z\d]+?)/index.m3u8()", @"$1$2.mp3")), dialog.FileName);
+                    webClient.DownloadFileTaskAsync(fUrl, dialog.FileName);
                 }
                 }
                 }
@@ -499,15 +498,15 @@ fUrl = AudioList[lvAudios.SelectedIndices[0]].Url;
                         {
                             index = MyAudios.FindIndex(x => x.id == (int)item.Tag);
                             fName = MyAudios[index].Artist + " - " + MyAudios[index].Title + ".mp3";
-fUrl = MyAudios[index].Url;
+fUrl = UrlToMp3(MyAudios[index].Url);
                         }
                         else
                         {
                             fName = AudioList[item.Index].Artist + " - " + AudioList[item.Index].Title + ".mp3";
-                            fUrl = AudioList[item.Index].Url;
+                            fUrl = UrlToMp3(AudioList[item.Index].Url);
                         }
                         webClient.QueryString.Add("file", fName);
-                        await webClient.DownloadFileTaskAsync(Regex.Replace(fUrl, @"/[a-zA-Z\d]{6,}(/.*?[a-zA-Z\d]+?)/index.m3u8()", @"$1$2.mp3"), dialog.SelectedPath  + @"\" + fName);
+                        await webClient.DownloadFileTaskAsync(fUrl, dialog.SelectedPath  + @"\" + fName);
                     }
                 }
                 }
@@ -1053,6 +1052,21 @@ catch (ArgumentOutOfRangeException)
                 await GetRecommendationsAsync(null, AudioList[lvAudios.SelectedIndices[0]].Owner_id.ToString());
             }
 
+private string UrlToMp3(string url) {
+            url = url.Replace("/index.m3u8", ".mp3");
+            string[] urlParts = url.Split('/');
+            if (urlParts.Contains("audios")) {
+                string junkPart = urlParts[urlParts.Count() - 3];
+                urlParts = urlParts.Where(val => val != junkPart).ToArray();
+            }
+            else
+            {
+                string junkPart = urlParts[urlParts.Count() - 2];
+                urlParts = urlParts.Where(val => val != junkPart).ToArray();
+            }
+url = string.Join("/", urlParts);
+                return url;
+}
 
     }
 }
